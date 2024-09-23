@@ -105,19 +105,21 @@ def profile():
     
     if request.method == 'GET':
         student = mongo.db.students.find_one({"_id": ObjectId(current_user_id)})
-        if user:
-            return dumps({"profile": student.get('profile', {})}), 200
+        if student:
+            print(student)
+            return dumps({"profile": student.get('profile')}), 200
         return jsonify({"message": "User not found"}), 404
     
     elif request.method == 'PUT':
         data = request.get_json()
-        profile_data = data.get('profile')
+        print(data)
+        profile_data = data
         
         # Validate and sanitize profile data here
         # allowed_fields = ['name', 'bio', 'location', 'birthdate']
         # sanitized_profile = {k: v for k, v in profile_data.items() if k in allowed_fields}
         
-        result = mongo.db.users.update_one(
+        result = mongo.db.students.update_one(
             {"_id": ObjectId(current_user_id)},
             {"$set": {"profile": profile_data}}
         )
@@ -234,55 +236,57 @@ def start_virtual_interview():
     
     if request.method == 'GET':
         student = mongo.db.students.find_one({"_id": ObjectId(current_user_id)})
+        mongo.close()
         if user:
             return dumps({"profile": student.get('profile', {})}), 200
         return jsonify({"message": "User not found"}), 404
-    mongo.close()
-    client=OpenAI(api_key=API_KEY)
-    thread = client.beta.threads.create()
 
-    message = client.beta.threads.messages.create(
-        thread_id=thread.id,
-        role="user",
-        content="Generate EQ Questions"    
-    )
-    run = client.beta.threads.runs.create(
-    thread_id=thread.id,
-    assistant_id=ASSISTANT_ID_EQ_Q)
+    # if request.method == 'PUT':
+    #     client=OpenAI(api_key=API_KEY)
+    #     thread = client.beta.threads.create()
 
-    run_status = client.beta.threads.runs.retrieve(
-        thread_id=thread.id,
-        run_id=run.id
-    )
-    # print(run_status)
+    #     message = client.beta.threads.messages.create(
+    #         thread_id=thread.id,
+    #         role="user",
+    #         content="Generate EQ Questions"    
+    #     )
+    #     run = client.beta.threads.runs.create(
+    #     thread_id=thread.id,
+    #     assistant_id=ASSISTANT_ID_EQ_Q)
 
-    for i in range(60):
-        print(f"Waiting for response... ({i} seconds)")
+    #     run_status = client.beta.threads.runs.retrieve(
+    #         thread_id=thread.id,
+    #         run_id=run.id
+    #     )
+    #     # print(run_status)
 
-        # get the latest run state
-        result = client.beta.threads.runs.retrieve(
-            thread_id=thread.id,
-            run_id=run.id
-        )
+    #     for i in range(60):
+    #         print(f"Waiting for response... ({i} seconds)")
 
-        if result.status == "requires_action": 
-            # run has executed
-            # parse structured response from the tool call
-            structured_response = json.loads(
-        # fetch json from function arguments
-                result.required_action.submit_tool_outputs.\
-                    tool_calls[0].function.arguments
-            )
-            print(structured_response)
-            break
-            # return structured_response
+    #         # get the latest run state
+    #         result = client.beta.threads.runs.retrieve(
+    #             thread_id=thread.id,
+    #             run_id=run.id
+    #         )
 
-        # wait 1 second before retry
-        time.sleep(1)
+    #         if result.status == "requires_action": 
+    #             # run has executed
+    #             # parse structured response from the tool call
+    #             structured_response = json.loads(
+    #         # fetch json from function arguments
+    #                 result.required_action.submit_tool_outputs.\
+    #                     tool_calls[0].function.arguments
+    #             )
+    #             print(structured_response)
+    #             break
+    #             # return structured_response
 
-    client.close()
-    
-    return structured_response
+    #         # wait 1 second before retry
+    #         time.sleep(1)
+
+    #     client.close()
+        
+    #     return structured_response
 
 @app.route('/rate',methods=['POST','GET'])
 @jwt_required()
