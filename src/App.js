@@ -21,8 +21,8 @@ const theme = createTheme({
 });
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isFirstTimeUser, setIsFirstTimeUser] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [isFirstTimeUser, setIsFirstTimeUser] = useState(true);
 
   return (
     <ThemeProvider theme={theme}>

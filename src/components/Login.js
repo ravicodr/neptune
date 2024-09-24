@@ -1,25 +1,43 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { 
-  Button, 
-  TextField, 
-  Typography, 
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  Button,
+  TextField,
+  Typography,
   Box,
   Container,
   Paper,
-  Link as MuiLink
-} from '@mui/material';
+  Link as MuiLink,
+  Snackbar,
+  Alert,
+} from "@mui/material";
+import { useAuth } from "../contexts/AuthContext"; // Import the AuthContext
 
-const Login = ({ setIsAuthenticated }) => {
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [password, setPassword] = useState('');
+const Login = () => {
+  const [phoneNumber, setPhoneNumber] = useState(1234567890);
+  const [password, setPassword] = useState("");
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
   const navigate = useNavigate();
+  const { login, error } = useAuth(); // Destructure login function and error from AuthContext
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    // Your login logic here
-    setIsAuthenticated(true);
-    navigate('/dashboard');
+
+    // Attempt to login using the AuthContext
+    const result = await login(phoneNumber, password);
+    
+    
+    if (result && !error) {
+      navigate("/dashboard"); // Navigate to the dashboard on successful login
+    } else if (error) {
+      setSnackbarMessage(error); // Set the snackbar message to display the error
+      setSnackbarOpen(true); // Open the snackbar for error message
+    }
+  };
+
+  const handleSnackbarClose = () => {
+    setSnackbarOpen(false); // Close the snackbar
   };
 
   return (
@@ -61,8 +79,8 @@ const Login = ({ setIsAuthenticated }) => {
           >
             Sign In
           </Button>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-            <Link to="/signup" style={{ textDecoration: 'none' }}>
+          <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+            <Link to="/signup" style={{ textDecoration: "none" }}>
               {"Don't have an account? Sign Up"}
             </Link>
             <MuiLink component={Link} to="/adminLogin" variant="body2">
@@ -71,6 +89,21 @@ const Login = ({ setIsAuthenticated }) => {
           </Box>
         </Box>
       </Paper>
+
+      {/* Snackbar for error messages */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+      >
+        <Alert
+          onClose={handleSnackbarClose}
+          severity="error"
+          sx={{ width: "100%" }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };
