@@ -70,7 +70,7 @@ def signup():
                 "Starting the EQ test": False,
                 "Submit EQ test": False,
                 "Selected/Rejected": False
-            }}})
+            },"interviews":[]}})
     mongo.close()
     return jsonify({"message": "User created successfully"}), 201
 
@@ -233,60 +233,113 @@ def start_virtual_interview():
     mongo = MongoClient(MONGO_DB_URI)
     db = mongo[DB_NAME]
     students=db['students']
+
+    if request.method == 'POST':
+        client=OpenAI(api_key=API_KEY)
+        thread = client.beta.threads.create()
+
+        message = client.beta.threads.messages.create(
+            thread_id=thread.id,
+            role="user",
+            content="Generate EQ Questions"    
+        )
+        run = client.beta.threads.runs.create(
+        thread_id=thread.id,
+        assistant_id=ASSISTANT_ID_EQ_Q)
+
+        run_status = client.beta.threads.runs.retrieve(
+            thread_id=thread.id,
+            run_id=run.id
+        )
+        # print(run_status)
+
+        for i in range(60):
+            print(f"Waiting for response... ({i} seconds)")
+
+            # get the latest run state
+            result = client.beta.threads.runs.retrieve(
+                thread_id=thread.id,
+                run_id=run.id
+            )
+
+            if result.status == "requires_action": 
+                # run has executed
+                # parse structured response from the tool call
+                structured_response = json.loads(
+            # fetch json from function arguments
+                    result.required_action.submit_tool_outputs.\
+                        tool_calls[0].function.arguments
+                )
+                print(structured_response)
+                break
+                # return structured_response
+
+            # wait 1 second before retry
+            time.sleep(1)
+        client.close()
+        structured_response["id"]=ObjectId()
+        result = mongo.db.students.update_one(
+            {'_id': ObjectId(current_user_id)},
+            {'$addToSet': {'interviews': structured_response}}
+        )
+        
+        print(result)
+        # result = mongo.db.students.update_one(,
+        #     {"$set": {"interviews": structured_response}}
+        # )
+        print(structured_response)
+        # return structured_response
+        # isinstance(obj_id, ObjectId):
+        # return str(obj_id)
+        return {"interviewId":str(structured_response["id"])}
+
+@app.route('/interview/<interviewId>/<questionId>',methods=['POST','GET'])
+@jwt_required()
+def interview(interviewId,questionId):
+    current_user_id = get_jwt_identity()
+    mongo = MongoClient(MONGO_DB_URI)
+    db = mongo[DB_NAME]
+    students=db['students']
+    questionId=int(questionId)
+    print(questionId)
+
     
     if request.method == 'GET':
-        student = mongo.db.students.find_one({"_id": ObjectId(current_user_id)})
-        mongo.close()
-        if user:
-            return dumps({"profile": student.get('profile', {})}), 200
-        return jsonify({"message": "User not found"}), 404
-
-    # if request.method == 'PUT':
-    #     client=OpenAI(api_key=API_KEY)
-    #     thread = client.beta.threads.create()
-
-    #     message = client.beta.threads.messages.create(
-    #         thread_id=thread.id,
-    #         role="user",
-    #         content="Generate EQ Questions"    
-    #     )
-    #     run = client.beta.threads.runs.create(
-    #     thread_id=thread.id,
-    #     assistant_id=ASSISTANT_ID_EQ_Q)
-
-    #     run_status = client.beta.threads.runs.retrieve(
-    #         thread_id=thread.id,
-    #         run_id=run.id
-    #     )
-    #     # print(run_status)
-
-    #     for i in range(60):
-    #         print(f"Waiting for response... ({i} seconds)")
-
-    #         # get the latest run state
-    #         result = client.beta.threads.runs.retrieve(
-    #             thread_id=thread.id,
-    #             run_id=run.id
-    #         )
-
-    #         if result.status == "requires_action": 
-    #             # run has executed
-    #             # parse structured response from the tool call
-    #             structured_response = json.loads(
-    #         # fetch json from function arguments
-    #                 result.required_action.submit_tool_outputs.\
-    #                     tool_calls[0].function.arguments
-    #             )
-    #             print(structured_response)
-    #             break
-    #             # return structured_response
-
-    #         # wait 1 second before retry
-    #         time.sleep(1)
-
-    #     client.close()
+        print(interviewId)
+        interviews="interviews"
+        print(ObjectId(interviewId))
+        # questionId=
+        result = mongo.db.students.find_one(
+        {"_id":ObjectId(current_user_id) , "interviews.id": ObjectId(interviewId)},
+        {"interviews.$": 1}
+        )
+        if result and 'interviews' in result and len(result['interviews']) > 0:
+            return {"id":str(result['interviews'][0]['id']),"eq_questions":result['interviews'][0]['eq_questions'][questionId]}
+        print(result["interviews"])
+        print(result[0]["eq_questions"][0]["question"])
+        # return {"id":str(result["interviews"]["id"]),"eq_questions":result[0]["eq_questions"][0]["question"]}
+        return {}
+        print(result)
         
-    #     return structured_response
+
+    
+    # if request.method == 'POST':
+    #     # if (not questionId==4):
+    #     data = request.get_json()
+
+    #     result = mongo.db.students.update_one(
+    #         {'_id': ObjectId(current_user_id)},
+    #         {'$addToSet': {'candidate_answers': data}}
+    #     )
+    #         # )
+    #     # else:
+    #     if (questionId==4):
+    #         eq_score = 
+
+
+
+    #     return {}
+        
 
 @app.route('/rate',methods=['POST','GET'])
 @jwt_required()
