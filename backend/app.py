@@ -148,7 +148,7 @@ def upload_file_and_run_thread():
     
     if request.method == 'GET':
         student = mongo.db.students.find_one({"_id": ObjectId(current_user_id)})
-        if user:
+        if student:
             return dumps({"profile": student.get('profile', {})}), 200
         return jsonify({"message": "User not found"}), 404
     mongo.close()
