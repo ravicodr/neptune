@@ -35,32 +35,32 @@ steps:
       contents: 'XYZ.tar.gz'
       targetFolder: '/home/azureuser'
   
-  # - task: SSH@0
-  #   inputs:
-  #     sshEndpoint:  'VM-connection'
-  #     runOptions: 'commands'
-  #     commands: |
-  #       sudo apt update
-  #       sudo apt install python3
-  #       sudo apt install pip3
-  #       tar -xvf /home/azureuser/XYZ.tar.gz -C /home/azureuser
-  #       sudo rm /home/azureuser/XYZ.tar.gz
-  #       sudo apt update && apt upgrade -y
-  #       sudo apt-get install python3-pip
-  #       pip install -r /home/azureuser/backend/requirements.txt
-  #       sudo apt update
-  #       sudo apt install curl
-  #       sudo curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-  #       sudo apt-get install node.js -y
-  #       sudo apt install nginx -y
-  #       cd frontend
-  #       npm install
-  #       npm run build
-  #       sudo cp -r /home/azureuser/frontend/dist /var/www/html/
-  #       cd ~
-  #       cd /home/azureuser/backend
-  #       flask run --debug
-  #       sudo systemctl restart nginx
+  - task: SSH@0
+    inputs:
+      sshEndpoint:  'VM-connection'
+      runOptions: 'commands'
+      commands: |
+        sudo apt update
+        sudo apt install python3
+        sudo apt install pip3
+        tar -xvf /home/azureuser/XYZ.tar.gz -C /home/azureuser
+        sudo rm /home/azureuser/XYZ.tar.gz
+        sudo apt update && apt upgrade -y
+        sudo apt-get install python3-pip
+        pip install -r /home/azureuser/backend/requirements.txt
+        sudo apt update
+        sudo apt install curl
+        sudo curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+        sudo apt-get install node.js -y
+        sudo apt install nginx -y
+        cd frontend
+        npm install
+        npm run build
+        sudo cp -r /home/azureuser/frontend/dist /var/www/html/
+        cd ~
+        cd /home/azureuser/backend
+        flask run --debug
+        sudo systemctl restart nginx
 
 #   - task: NodeTool@0
 #     inputs:
