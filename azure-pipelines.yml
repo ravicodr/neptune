@@ -47,6 +47,10 @@ steps:
         sudo apt-get install nginx -y
         tar -xvf /home/azureuser/XYZ.tar.gz -C /home/azureuser
         sudo rm /home/azureuser/XYZ.tar.gz
+        echo '$(Build.SourcesDirectory)'
+        echo '$(Build.ArtifactStagingDirectory)'
+        echo '$(System.DefaultWorkingDirectory)'
+        echo '$(RemotePublicFolder)'
         cd ./frontend
         pwd
         echo "In frontend folder"
