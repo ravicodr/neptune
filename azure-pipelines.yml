@@ -51,7 +51,7 @@ steps:
         # echo '$(Build.ArtifactStagingDirectory)'
         # echo '$(System.DefaultWorkingDirectory)'
         # echo '$(RemotePublicFolder)'
-        (cd $(FRONTENDFOLDER) && npm install && npm run build && cp -r build/ /var/www/html/ && exit)
+        (cd $(FRONTENDFOLDER) && npm install && npm run build && cp -r build /var/www/html/ && exit)
         sudo systemctl restart nginx
         # (cd $(FRONTENDFOLDER) && npm run build && exit)
         # echo "In frontend folder"
