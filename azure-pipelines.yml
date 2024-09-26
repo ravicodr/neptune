@@ -48,6 +48,7 @@ steps:
         tar -xvf /home/azureuser/XYZ.tar.gz -C /home/azureuser
         sudo rm /home/azureuser/XYZ.tar.gz
         cd frontend
+        echo "In frontend folder"
         npm install
         npm run build
         sudo cp -r /home/azureuser/frontend/dist /var/www/html/
