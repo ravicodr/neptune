@@ -41,21 +41,23 @@ steps:
       runOptions: 'commands'
       commands: |
         sudo apt-get update
-        tar -xvf /home/azureuser/XYZ.tar.gz -C /home/azureuser
-        sudo rm /home/azureuser/XYZ.tar.gz
         sudo apt-get install python3
         sudo apt-get install python3-pip
-        pip3 install -r /home/azureuser/backend/requirements.txt
         sudo apt-get install curl
         sudo curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
         sudo apt-get install node.js -y
         sudo apt-get install nginx -y
+        tar -xvf /home/azureuser/XYZ.tar.gz -C /home/azureuser
+        sudo rm /home/azureuser/XYZ.tar.gz
         cd frontend
         npm install
         npm run build
         sudo cp -r /home/azureuser/frontend/dist /var/www/html/
         cd ~
         cd /home/azureuser/backend
+        python3 -m venv virtual-env
+        virtual-env/Scripts/activate
+        pip3 install -r /home/azureuser/backend/requirements.txt
         flask run --debug
         sudo systemctl restart nginx
 
