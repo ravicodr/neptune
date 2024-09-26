@@ -47,7 +47,7 @@ steps:
         sudo apt-get install nginx -y
         tar -xvf /home/azureuser/XYZ.tar.gz -C /home/azureuser
         sudo rm /home/azureuser/XYZ.tar.gz
-        cd frontend
+        cd /home/azureuser/frontend
         echo "In frontend folder"
         npm install
         npm run build
