@@ -24,8 +24,8 @@ stages:
           name: 'Default'
         steps:
           - task: UsePythonVersion@0
-            # inputs:
-            #   versionSpec: '3.x'
+            inputs:
+              versionSpec: '3.x'
           - script: |
               cd flask-app
               python -m venv venv
