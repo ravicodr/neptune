@@ -61,7 +61,7 @@ steps:
         # npm run build
         # sudo cp -r /home/azureuser/frontend/dist /var/www/html/
         (cd $(BACKENDFOLDER) && python3 -m venv virtual-env && exit)
-        (cd $(BACKENDFOLDER)/virtual-env/Scripts && activate && pip3 install -r requirements.txt && flask run --debug)
+        (cd $(BACKENDFOLDER)/virtual-env/bin && activate && cd $(BACKENDFOLDER) && pip3 install -r requirements.txt && flask run --debug)
         # (cd $(BACKENDFOLDER) && pip3 install -r requirements.txt)
         # (cd $(BACKENDFOLDER) && flask run --debug)
         
