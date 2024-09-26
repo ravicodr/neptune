@@ -43,7 +43,7 @@ steps:
         sudo apt-get update
         sudo apt-get install python3
         sudo apt-get install python3-pip
-        sudo apt install nodejs
+        sudo apt-get install nodejs
         sudo apt-get install nginx -y
         tar -xvf /home/azureuser/XYZ.tar.gz -C /home/azureuser
         sudo rm /home/azureuser/XYZ.tar.gz
