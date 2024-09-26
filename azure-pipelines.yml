@@ -47,12 +47,13 @@ steps:
         sudo apt-get install nginx -y
         tar -xvf /home/azureuser/XYZ.tar.gz -C /home/azureuser
         sudo rm /home/azureuser/XYZ.tar.gz
+        sudo chmod -R 777 /var/www/html
         # echo '$(Build.SourcesDirectory)'
         # echo '$(Build.ArtifactStagingDirectory)'
         # echo '$(System.DefaultWorkingDirectory)'
         # echo '$(RemotePublicFolder)'
         sudo chmod +rwx /var/www/html/
-        (cd $(FRONTENDFOLDER) && npm install && npm run build && cp -r build /var/www/html/ && exit)
+        (cd $(FRONTENDFOLDER) && npm install && npm run build && cp -r build/ /var/www/html/ && exit)
         sudo systemctl restart nginx
         # (cd $(FRONTENDFOLDER) && npm run build && exit)
         # echo "In frontend folder"
