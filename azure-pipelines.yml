@@ -51,18 +51,16 @@ steps:
         # echo '$(Build.ArtifactStagingDirectory)'
         # echo '$(System.DefaultWorkingDirectory)'
         # echo '$(RemotePublicFolder)'
-        cd $(FRONTENDFOLDER)
-        pwd
-        echo "In frontend folder"
-        npm install
-        npm run build
+        (cd $(FRONTENDFOLDER) && npm install)
+        (cd $(FRONTENDFOLDER) && npm run build)
+        # echo "In frontend folder"
+        # npm install
+        # npm run build
         sudo cp -r /home/azureuser/frontend/dist /var/www/html/
-        cd ~
-        cd $(BACKENDFOLDER)
-        python3 -m venv virtual-env
-        virtual-env/Scripts/activate
-        pip3 install -r /home/azureuser/backend/requirements.txt
-        flask run --debug
+        (cd $(BACKENDFOLDER) && python3 -m venv virtual-env)
+        (cd $(BACKENDFOLDER)/virtual-env/Scripts && activate)
+        (cd $(BACKENDFOLDER) && pip3 install -r requirements.txt)
+        (cd $(BACKENDFOLDER) && flask run --debug)
         sudo systemctl restart nginx
 
 #   - task: NodeTool@0
