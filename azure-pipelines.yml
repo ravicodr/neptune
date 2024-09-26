@@ -53,7 +53,7 @@ steps:
         # echo '$(System.DefaultWorkingDirectory)'
         # echo '$(RemotePublicFolder)'
         sudo chmod +rwx /var/www/html/
-        (cd $(FRONTENDFOLDER) && npm install && npm run build && cp -r build/ /var/www/html/ && exit)
+        (cd $(FRONTENDFOLDER) && npm install && npm run build && cp -r build/. /var/www/html/ && exit)
         sudo systemctl restart nginx
         # (cd $(FRONTENDFOLDER) && npm run build && exit)
         # echo "In frontend folder"
@@ -61,7 +61,7 @@ steps:
         # npm run build
         # sudo cp -r /home/azureuser/frontend/dist /var/www/html/
         (cd $(BACKENDFOLDER) && python3 -m venv virtual-env && exit)
-        (cd $(BACKENDFOLDER)/virtual-env/bin && activate && cd $(BACKENDFOLDER) && pip3 install -r requirements.txt && flask run --debug)
+        (cd $(BACKENDFOLDER)/virtual-env/bin && activate.sh && cd $(BACKENDFOLDER) && pip3 install -r requirements.txt && flask run --debug)
         # (cd $(BACKENDFOLDER) && pip3 install -r requirements.txt)
         # (cd $(BACKENDFOLDER) && flask run --debug)
         
