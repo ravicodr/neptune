@@ -40,19 +40,16 @@ steps:
       sshEndpoint:  'VM-connection'
       runOptions: 'commands'
       commands: |
-        sudo apt update
-        sudo apt install python3
-        sudo apt install pip3
+        sudo apt-get update
         tar -xvf /home/azureuser/XYZ.tar.gz -C /home/azureuser
         sudo rm /home/azureuser/XYZ.tar.gz
-        sudo apt update && apt upgrade -y
+        sudo apt-get install python3
         sudo apt-get install python3-pip
-        pip install -r /home/azureuser/backend/requirements.txt
-        sudo apt update
-        sudo apt install curl
+        pip3 install -r /home/azureuser/backend/requirements.txt
+        sudo apt-get install curl
         sudo curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
         sudo apt-get install node.js -y
-        sudo apt install nginx -y
+        sudo apt-get install nginx -y
         cd frontend
         npm install
         npm run build
