@@ -6,7 +6,7 @@ stages:
     jobs:
       - job: BuildReactApp
         pool:
-          name: 'Default'
+          name: 'Azure Pipelines'
         steps:
           - task: NodeTool@0
             inputs:
@@ -21,7 +21,7 @@ stages:
 
       - job: BuildFlaskApp
         pool:
-          name: 'Default'
+          name: 'Azure Pipelines'
         steps:
           - task: UsePythonVersion@0
             inputs:
