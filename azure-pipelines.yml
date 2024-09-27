@@ -30,7 +30,7 @@ stages:
               cd flask-app
               python -m venv venv
               source venv/bin/activate
-              pip install -r requirements.txt
+              pip install -r backend/requirements.txt
             displayName: 'Set up Flask environment'
           - publish: $(System.DefaultWorkingDirectory)/backend
             artifact: flask-app
