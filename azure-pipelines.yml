@@ -90,7 +90,15 @@ stages:
                       python3 -m venv venv
                       source venv/bin/activate
                       pip install -r requirements.txt
-                      sudo systemctl restart flask-app
+                      export API_KEY=$(API_KEY)
+                      export ASSISTANT_EQ_Q_GENERATOR=$(ASSISTANT_EQ_Q_GENERATOR)
+                      export ASSISTANT_ID_CV_EVALUATOR=$(ASSISTANT_ID_CV_EVALUATOR)
+                      export DB_NAME=$(DB_NAME)
+                      export JWT_SECRET_KEY=$(JWT_SECRET_KEY)
+                      export MONGODB_URI=$(MONGODB_URI)
+                      # sudo nano /etc/systemd/system/flask-app.service
+                      flask run --debug
+                      # sudo systemctl restart flask-app
                       
                       # Configure Nginx
                       sudo tee /etc/nginx/sites-available/myapp <<EOF
