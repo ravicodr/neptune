@@ -60,21 +60,22 @@ stages:
                     sshEndpoint: 'VM-connection'
                     runOptions: 'commands'
                     commands: |
+                      sudo chmod -R 777 /var/www
                       mkdir '/var/www/react-app'
                       mkdir '/var/www/flask-app'
                 - task: CopyFilesOverSSH@0
                   inputs:
                     sshEndpoint: 'VM-connection'
-                    sourceFolder: '$(Pipeline.Workspace)/react-build'
+                    sourceFolder: '$(Pipeline.Workspace)/react-build/'
                     contents: '**'
-                    targetFolder: '/var/www/react-app'
+                    targetFolder: '/var/www/react-app/'
                 
                 - task: CopyFilesOverSSH@0
                   inputs:
                     sshEndpoint: 'VM-connection'
-                    sourceFolder: '$(Pipeline.Workspace)/flask-app'
+                    sourceFolder: '$(Pipeline.Workspace)/flask-app/'
                     contents: '**'
-                    targetFolder: '/var/www/flask-app'
+                    targetFolder: '/var/www/flask-app/'
 
                 - task: SSH@0
                   inputs:
