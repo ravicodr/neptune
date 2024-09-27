@@ -1,4 +1,11 @@
+
 {
+  "_id": {
+    "$oid": "66f68fa0ba9a7bd5d1e89101"
+  },
+  "phone": "7011442971",
+  "password": "$2b$12$uSV.7amUBN6BU9NSIZ0Ole0h1Hodrx/1bYGZSkfcEu9qg8p8ltiT2",
+  "profile": {
     "additionalInfo": {
         "otherInformation": "3 years Work Experience of sales executive in Shiv Shakti Poultry Equipments in Gorakhpur UP"
     },
@@ -40,4 +47,9 @@
     "situationalJudgment": {
         "lateWorkScenario": null
     }
+},
+  "tasks": {
+    "Uploading CV": true
+  },
+  "interviews": []
 }
