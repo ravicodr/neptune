@@ -61,8 +61,8 @@ stages:
                     runOptions: 'commands'
                     commands: |
                       sudo chmod -R 777 /var/www
-                      mkdir '/var/www/react-app'
-                      mkdir '/var/www/flask-app'
+                      mkdir -p '/var/www/react-app'
+                      mkdir -p '/var/www/flask-app'
                 - task: CopyFilesOverSSH@0
                   inputs:
                     sshEndpoint: 'VM-connection'
