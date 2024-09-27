@@ -55,6 +55,13 @@ stages:
                     artifactName: 'flask-app'
                     targetPath: '$(Pipeline.Workspace)/flask-app'
 
+                - task: SSH@0
+                  inputs:
+                    sshEndpoint: 'VM-connection'
+                    runOptions: 'commands'
+                    commands: |
+                      mkdir '/var/www/react-app'
+                      mkdir '/var/www/flask-app'
                 - task: CopyFilesOverSSH@0
                   inputs:
                     sshEndpoint: 'VM-connection'
