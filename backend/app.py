@@ -7,7 +7,7 @@ from pymongo import MongoClient
 import os
 import requests
 from werkzeug.utils import secure_filename
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from openai import OpenAI
 import time
 import json
@@ -20,7 +20,7 @@ bcrypt = Bcrypt(app)
 jwt = JWTManager(app)
 
 # Load environment variables
-load_dotenv()
+# load_dotenv()
     
 # app = Flask(__name__)
 
@@ -28,24 +28,50 @@ load_dotenv()
 # app = Flask(__name__)
 
 # Load environment variables
-load_dotenv()
+# load_dotenv()
 
 # Configuration
-API_KEY=os.getenv("API_KEY")
-BASE_URL = os.getenv("BASE_URL")
-UPLOAD_FOLDER=os.getenv('UPLOAD_FOLDER')
-ASSISTANT_ID_CV=os.getenv('ASSISTANT_ID_CV_EVALUATOR')
-ASSISTANT_ID_EQ_Q=os.getenv('ASSISTANT_EQ_Q_GENERATOR')
-MONGO_DB_URI=os.getenv('MONGODB_URI')
-DB_NAME=os.getenv('DB_NAME')
-app.config["JWT_SECRET_KEY"]=os.getenv('JWT_SECRET_KEY')
+API_KEY=os.environ["API_KEY"]
+# BASE_URL = os.environ["BASE_URL"]
+UPLOAD_FOLDER=os.environ['UPLOAD_FOLDER']
+ASSISTANT_ID_CV=os.environ['ASSISTANT_ID_CV_EVALUATOR']
+ASSISTANT_ID_EQ_Q=os.environ['ASSISTANT_EQ_Q_GENERATOR']
+MONGO_DB_URI="mongodb+srv://harshityadav:JxsV3y4V7mWl8g1I@cluster0.s9trpdc.mongodb.net/student_db"
+# MONGO_DB_URI=os.environ('MONGODB_URI')
+DB_NAME=os.environ['DB_NAME']
+JWT_SECRET_KEY=os.environ['JWT_SECRET_KEY']
+
+
+# MONGO_DB_URI="mongodb+srv://ishwari:Ganesh%4024@testdb.a204r.mongodb.net/student_db"
+# DB_NAME="student_db"
+# API_KEY="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"
+# ASSISTANT_ID_CV="asst_B3YYyaAiv4uKIvD1s1YYBylv"
+# ASSISTANT_ID_EQ_Q="asst_1ZpWfFAWQNiedZ6nFjlVGH4w"
+# UPLOAD_FOLDER="/uploads/"
+# FLASK_APP="app"
+# JWT_SECRET_KEY="Ishwari Pillay"
+
+
+app.config["JWT_SECRET_KEY"]=JWT_SECRET_KEY
+
+
+CORS(app)
+# cors allow all origins and methods
+
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
+
 
 
 if __name__ == '__app__':
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     app.run(debug=True)
 
-
+mongo = MongoClient(MONGO_DB_URI)
 
 @app.route('/index')
 def index():
@@ -56,7 +82,7 @@ def signup():
     data = request.get_json()
     phone = data.get('phone')
     password = data.get('password')
-    mongo = MongoClient(MONGO_DB_URI)
+    
     db = mongo[DB_NAME]
     students=db['students']
     
@@ -64,14 +90,13 @@ def signup():
         return jsonify({"message": "Phone number already registered"}), 400
     
     hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-    mongo.db.students.insert_one({"phone": phone, "password": hashed_password,"profile":{"tasks": {
+    mongo.db.students.insert_one({"phone": phone, "password": hashed_password,"profile":{},"tasks": {
                 "Uploading CV": False,
                 "Completing the Profile": False,
                 "Starting the EQ test": False,
-                "Submit EQ test": False,
-                "Selected/Rejected": False
-            },"interviews":[]}})
-    mongo.close()
+                "Submit EQ test": False
+            },"interviews":[]})
+  
     return jsonify({"message": "User created successfully"}), 201
 
 
@@ -80,7 +105,7 @@ def login():
     data = request.get_json()
     phone = data.get('phone')
     password = data.get('password')
-    mongo = MongoClient(MONGO_DB_URI)
+    
     db = mongo[DB_NAME]
     students=db['students']
     
@@ -90,7 +115,7 @@ def login():
         #returns access token
         return jsonify(access_token=access_token), 200
 
-    mongo.close()
+    
     
     return jsonify({"message": "Invalid credentials"}), 401
 
@@ -98,7 +123,7 @@ def login():
 @jwt_required()
 def profile():
     current_user_id = get_jwt_identity()
-    mongo = MongoClient(MONGO_DB_URI)
+    
     db = mongo[DB_NAME]
     students=db['students']
 
@@ -107,7 +132,7 @@ def profile():
         student = mongo.db.students.find_one({"_id": ObjectId(current_user_id)})
         if student:
             print(student)
-            return dumps({"profile": student.get('profile')}), 200
+            return dumps({"profile": student.get('profile'),"tasks": student.get('tasks')}), 200
         return jsonify({"message": "User not found"}), 404
     
     elif request.method == 'PUT':
@@ -121,7 +146,7 @@ def profile():
         
         result = mongo.db.students.update_one(
             {"_id": ObjectId(current_user_id)},
-            {"$set": {"profile": profile_data}}
+            {"$set": {"profile": profile_data,"tasks":{"Completing the Profile":True}}},
         )
         
         if result.modified_count:
@@ -142,18 +167,13 @@ def protected():
 @jwt_required()
 def upload_file_and_run_thread():
     current_user_id = get_jwt_identity()
-    mongo = MongoClient(MONGO_DB_URI)
+    
     db = mongo[DB_NAME]
     students=db['students']
     
-    if request.method == 'GET':
-        student = mongo.db.students.find_one({"_id": ObjectId(current_user_id)})
-        if student:
-            return dumps({"profile": student.get('profile', {})}), 200
-        return jsonify({"message": "User not found"}), 404
-    mongo.close()
-    uploaded_file = request.files['file']
     
+    uploaded_file = request.files['file']
+    print(uploaded_file)
     client=OpenAI(api_key=API_KEY)
 
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -222,7 +242,13 @@ def upload_file_and_run_thread():
 
         # wait 1 second before retry
         time.sleep(1)
-        
+
+    
+    result = mongo.db.students.update_one(
+        {"_id": ObjectId(current_user_id)},
+        {"$set": {"tasks": {"Uploading CV": True}}}
+    )
+            
     client.close()
     return structured_response
 
@@ -230,7 +256,7 @@ def upload_file_and_run_thread():
 @jwt_required()
 def start_virtual_interview():
     current_user_id = get_jwt_identity()
-    mongo = MongoClient(MONGO_DB_URI)
+    
     db = mongo[DB_NAME]
     students=db['students']
 
@@ -280,7 +306,7 @@ def start_virtual_interview():
         structured_response["id"]=ObjectId()
         result = mongo.db.students.update_one(
             {'_id': ObjectId(current_user_id)},
-            {'$addToSet': {'interviews': structured_response}}
+            {'$addToSet': {'interviews': structured_response, 'tasks': {'Starting Virtual Interview': True}}}
         )
         
         print(result)
@@ -293,59 +319,118 @@ def start_virtual_interview():
         # return str(obj_id)
         return {"interviewId":str(structured_response["id"])}
 
-@app.route('/interview/<interviewId>/<questionId>',methods=['POST','GET'])
+@app.route('/interview-questions/<interviewId>', methods=['GET'])
 @jwt_required()
-def interview(interviewId,questionId):
+def interview_questions(interviewId):
     current_user_id = get_jwt_identity()
-    mongo = MongoClient(MONGO_DB_URI)
+    
     db = mongo[DB_NAME]
-    students=db['students']
-    questionId=int(questionId)
-    print(questionId)
+    students = db['students']
 
+    result = mongo.db.students.find_one({"_id": ObjectId(current_user_id), "interviews.id": ObjectId(interviewId)},
+                                         {"interviews.$": 1})
     
-    if request.method == 'GET':
-        print(interviewId)
-        interviews="interviews"
-        print(ObjectId(interviewId))
-        # questionId=
-        result = mongo.db.students.find_one(
-        {"_id":ObjectId(current_user_id) , "interviews.id": ObjectId(interviewId)},
+    if result and 'interviews' in result and len(result['interviews']) > 0:
+        return {
+            "id": str(result['interviews'][0]['id']),
+            "questions": result['interviews'][0]['eq_questions']
+        }
+    return jsonify({"message": "Interview not found"}), 404
+
+
+@app.route('/submit-interview/<interviewId>', methods=['POST'])
+@jwt_required()
+def submit_interview(interviewId):
+    current_user_id = get_jwt_identity()
+    
+    db = mongo[DB_NAME]
+    students = db['students']
+
+    data = request.get_json()
+    answers = data.get('answers', [])
+    
+    result = mongo.db.students.find_one(
+        {"_id": ObjectId(current_user_id), "interviews.id": ObjectId(interviewId)},
         {"interviews.$": 1}
-        )
-        if result and 'interviews' in result and len(result['interviews']) > 0:
-            return {"id":str(result['interviews'][0]['id']),"eq_questions":result['interviews'][0]['eq_questions'][questionId]}
-        print(result["interviews"])
-        print(result[0]["eq_questions"][0]["question"])
-        # return {"id":str(result["interviews"]["id"]),"eq_questions":result[0]["eq_questions"][0]["question"]}
-        return {}
-        print(result)
-        
+    )
 
+    if not result or 'interviews' not in result:
+        return jsonify({"message": "Interview not found"}), 404
+
+    interview = result['interviews'][0]
+    questions = interview['eq_questions']  # Ensure this field exists
+    total_score = 0
+
+    for idx, answer in enumerate(answers):
+        if idx < len(questions):
+            # Check if the 'answers' field exists in the question
+            if 'answers' not in questions[idx]:
+                return jsonify({"message": f"Answers not found for question {idx + 1}"}), 400
+            
+            correct_answer_index = 0 
+            
+            if answer == questions[idx]['answers'][correct_answer_index]:
+                total_score += 10  # Max score for the correct option
+            elif len(questions[idx]['answers']) > 1 and answer == questions[idx]['answers'][1]:  # Second option
+                total_score += 5  # Medium score
+            elif len(questions[idx]['answers']) > 2 and answer == questions[idx]['answers'][2]:  # Third option
+                total_score += 1  # Least score
     
-    # if request.method == 'POST':
-    #     # if (not questionId==4):
-    #     data = request.get_json()
 
-    #     result = mongo.db.students.update_one(
-    #         {'_id': ObjectId(current_user_id)},
-    #         {'$addToSet': {'candidate_answers': data}}
-    #     )
-    #         # )
-    #     # else:
-    #     if (questionId==4):
-    #         eq_score = 
+    student = mongo.db.students.find_one({"_id": ObjectId(current_user_id)})
+    rejectionReason = None
+    if student:
+        # 1. ITI trade condition
+        iti_trade = next((edu["graduationDegree"] for edu in student.get("education", []) if "ITI" in edu.get("degree", "").upper()), None)
+        if iti_trade and iti_trade.upper() not in ["ELECTRONICS", "ELECTRICAL"]:
+            print(f"Candidate is not eligible due to ITI trade: {iti_trade}")
+            rejectionReason = "Degree not eligible for virtual interview"
+            return
 
+        # 2. Parents' income condition
+        parents_income = student.get("familyInfo", {}).get("parentsAnnualIncome", 0)
+        if parents_income > 1500000:  # 15 lac in rupees
+            print("Candidate is not eligible due to high parents' income.")
+            rejectionReason = "Annual Income not eligible for virtual interview"
+            return
 
+        # 3. Parents' profession condition
+        parent_professions = [student.get("familyInfo", {}).get("fatherProfession"), 
+                            student.get("familyInfo", {}).get("motherProfession")]
+        if any(prof in ["JUDGE", "IAS", "IPS"] for prof in parent_professions if prof):
+            print("Candidate is not eligible due to parent's profession.")
+            rejectionReason = "Profession not eligible for virtual interview"
+            return
 
-    #     return {}
+        # 4. IQ/EQ questions condition
         
+        if total_score < 70:
+            print("Candidate is not eligible due to low IQ/EQ score.")
+            rejectionReason = "IQ/EQ score not eligible for virtual interview"
+            return
+
+        # 5. 10th marks condition
+        tenth_marks = next((float(edu["tenthBoardMarks"]["percentage"]) for edu in student.get("education", [])))                 
+        if tenth_marks is not None and tenth_marks > 80:
+            print(f"Candidate is not eligible due to high 10th marks: {tenth_marks}%")
+            rejectionReason = "10th marks not eligible for virtual interview"
+            return
+
+    # Store the score in the database if needed
+    mongo.db.students.update_one(
+        {'_id': ObjectId(current_user_id), 'interviews.id': ObjectId(interviewId)},
+        {'$set': {'interviews.$.score': total_score, 'tasks': {'Submit EQ test': True}, 'rejectionReason': rejectionReason}}  # Update the interview score
+    )
+
+    return jsonify({"total_score": total_score}), 200
+
 
 @app.route('/rate',methods=['POST','GET'])
 @jwt_required()
 def rate_students():
+    
     current_user_id = get_jwt_identity()
-    mongo = MongoClient(MONGO_DB_URI)
+    
     db = mongo[DB_NAME]
     students=db['students']
     
@@ -353,13 +438,13 @@ def rate_students():
         student = mongo.db.students.find_one({"_id": ObjectId(current_user_id)})
         if student:
             # 1. ITI trade condition
-            iti_trade = next((edu["degree"] for edu in data.get("education", []) if "ITI" in edu.get("degree", "").upper()), None)
+            iti_trade = next((edu["degree"] for edu in student.get("education", []) if "ITI" in edu.get("degree", "").upper()), None)
             if iti_trade and iti_trade.upper() not in ["ELECTRONICS", "ELECTRICAL"]:
                 print(f"Candidate is not eligible due to ITI trade: {iti_trade}")
                 return
 
             # 2. Parents' income condition
-            parents_income = data.get("familyInfo", {}).get("parentsIncome", 0)
+            parents_income = student.get("familyInfo", {}).get("parentsIncome", 0)
             if parents_income > 1500000:  # 15 lac in rupees
                 print("Candidate is not eligible due to high parents' income.")
                 return

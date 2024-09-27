@@ -30,18 +30,20 @@ import {
   Pending,
   Cancel,
 } from "@mui/icons-material";
+import { useAuth } from "../contexts/AuthContext";
 
 const StudentDashboard = () => {
   const [studentData, setStudentData] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { token } = useAuth();
 
   useEffect(() => {
     const fetchStudentData = async () => {
       try {
         const response = await fetch("http://localhost:5000/profile", {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
         });
 
@@ -51,25 +53,39 @@ const StudentDashboard = () => {
 
         let data = await response.json();
         console.log("Student data:", data);
-        data = data.profile;
+        data = data?.profile;
 
         // Transforming data to match your component's structure
         setStudentData({
-          name: data.personalInfo.name,
-          email: data.personalInfo.email,
+          name: data?.personalInfo?.name || "Name not provided",
+          email: data?.personalInfo?.email || "Email not provided",
           avatar: "https://via.placeholder.com/100", // Replace with actual avatar URL
           applicationStatus: "Under Review", // Assuming this will come from your API
           personalInfo: {
-            phone: data.personalInfo.phone,
+            phone: data?.personalInfo?.phone || "Phone number not provided",
             address: "Address not provided", // This can be added in the API response if available
           },
           education: {
-            graduationDegree: data.education.graduationDegree,
-            tenthMarks: data.education.tenthMarks,
+            graduationDegree:
+              data?.education?.graduationDegree || "Degree not provided",
+            tenthMarks: data?.education?.tenthMarks || "Marks not provided",
           },
           parentInfo: {
-            income: data.familyInfo.parentsAnnualIncome,
-            occupation: `${data.familyInfo.fatherProfession} & ${data.familyInfo.motherProfession}`,
+            income:
+              data?.familyInfo?.parentsAnnualIncome || "Income not provided",
+            occupation: (() => {
+              const fatherProfession = data?.familyInfo?.fatherProfession;
+              const motherProfession = data?.familyInfo?.motherProfession;
+              if (fatherProfession && motherProfession) {
+                return `${fatherProfession} & ${motherProfession}`;
+              } else if (fatherProfession) {
+                return fatherProfession;
+              } else if (motherProfession) {
+                return motherProfession;
+              } else {
+                return "Occupation not provided";
+              }
+            })(),
           },
 
           iqEqTest: {
@@ -112,16 +128,16 @@ const StudentDashboard = () => {
   const calculateProfileCompletion = (data) => {
     const totalFields = 10; // Update this based on the number of fields
     const filledFields = [
-      data.personalInfo.name,
-      data.personalInfo.email,
-      data.personalInfo.phone,
-      data.education.graduationDegree,
-      data.education.tenthMarks,
-      data.parentInfo.income,
-      data.parentInfo.occupation,
+      data?.personalInfo.name,
+      data?.personalInfo.email,
+      data?.personalInfo.phone,
+      data?.education.graduationDegree,
+      data?.education.tenthMarks,
+      data?.parentInfo.income,
+      data?.parentInfo.occupation,
 
-      data.iqEqTest.completed,
-      data.notifications.length,
+      data?.iqEqTest.completed,
+      data?.notifications.length,
     ].filter(Boolean).length;
 
     return (filledFields / totalFields) * 100;
@@ -132,7 +148,7 @@ const StudentDashboard = () => {
   }
 
   if (!studentData) {
-    return <Typography>Error loading student data.</Typography>;
+    return <Typography>Error loading student data?.</Typography>;
   }
 
   const profileCompletion = calculateProfileCompletion(studentData);
@@ -161,12 +177,7 @@ const StudentDashboard = () => {
       <Grid container spacing={3}>
         <Grid item xs={12} md={4}>
           <Paper elevation={3} sx={{ p: 3, textAlign: "center" }}>
-            <Avatar
-              src={studentData.avatar}
-              sx={{ width: 100, height: 100, margin: "auto", mb: 2 }}
-            >
-              {studentData.name.charAt(0)}
-            </Avatar>
+            
             <Typography variant="h5">{studentData.name}</Typography>
             <Typography color="textSecondary">{studentData.email}</Typography>
           </Paper>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Typography,
   Box,
@@ -10,33 +10,38 @@ import {
   LinearProgress,
   Container,
 } from "@mui/material";
-import axios from "axios"; // Make sure axios is installed
+import axios from "axios";
+import { useAuth } from "../contexts/AuthContext";
 
 const initialProfileData = {
   personalInfo: {
     name: "",
-    email: "",
-    phone: "",
-    category: null,
-    religion: null,
+    emailId: "",
+    mobileNumber: [""],
+    category: "",
+    religion: "",
   },
   education: {
-    graduationDegree: "",
-    graduationUniversity: "",
-    graduationYear: "",
-    tenthMarks: "",
-    twelfthMarks: "",
+    graduationDegree: {
+      degree: "",
+      university: "",
+      year: "",
+    },
     tenthBoardMarks: {
+      marks: "",
+      percentage: "",
+    },
+    twelfthBoardMarks: {
       marks: "",
       percentage: "",
     },
   },
   familyInfo: {
-    fatherProfession: "",
-    motherProfession: "",
+    fathersProfession: "",
+    mothersProfession: "",
     parentsAnnualIncome: "",
   },
-  workExperience: [],
+  workExperience: [], // Start with an empty array for work experience
   futureGoals: {
     fiveYearVision: "",
   },
@@ -55,78 +60,40 @@ const initialProfileData = {
 };
 
 const ProfileCompletion = () => {
+  const { token } = useAuth();
+  const location = useLocation();
   const [profileData, setProfileData] = useState(initialProfileData);
   const [completionPercentage, setCompletionPercentage] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const storedData = localStorage.getItem("profileData");
-    if (storedData) {
-      try {
-        const parsedData = JSON.parse(storedData);
-        setProfileData({
-          personalInfo: {
-            name: parsedData.personalInfo?.name || "",
-            email: parsedData.personalInfo?.email || "",
-            phone: parsedData.personalInfo?.phone || "", // Updated this line
-            category: parsedData.personalInfo?.category || "",
-            religion: parsedData.personalInfo?.religion || "",
-          },
-          education: {
-            graduationDegree: parsedData.education?.graduationDegree || "",
-            graduationUniversity:
-              parsedData.education?.graduationUniversity || "",
-            graduationYear: parsedData.education?.graduationYear || "",
-            tenthMarks: parsedData.education?.tenthMarks || "",
-            twelfthMarks: parsedData.education?.twelfthMarks || "",
-            tenthBoardMarks: {
-              marks: parsedData.education?.tenthBoardMarks?.marks || "",
-              percentage:
-                parsedData.education?.tenthBoardMarks?.percentage || "",
-            },
-          },
-          familyInfo: {
-            fatherProfession: parsedData.familyInfo?.fatherProfession || "",
-            motherProfession: parsedData.familyInfo?.motherProfession || "",
-            parentsAnnualIncome:
-              parsedData.familyInfo?.parentsAnnualIncome || "",
-          },
-          workExperience: parsedData.workExperience || [],
-          futureGoals: {
-            fiveYearVision: parsedData.futureGoals?.fiveYearVision || "",
-          },
-          interests: {
-            hobbies: parsedData.interests?.hobbies || [],
-          },
-          professionalInfo: {
-            postAppliedFor: parsedData.professionalInfo?.postAppliedFor || "",
-          },
-          situationalJudgment: {
-            lateWorkScenario:
-              parsedData.situationalJudgment?.lateWorkScenario || "",
-          },
-          additionalInfo: {
-            otherInformation: parsedData.additionalInfo?.otherInformation || "",
-          },
-        });
-      } catch (error) {
-        console.error("Error parsing stored data:", error);
-        setProfileData(initialProfileData);
-      }
+    if (location.state && location.state.profileData) {
+      const incomingProfileData = location.state.profileData;
+      const updatedProfileData = {
+        ...initialProfileData,
+        ...incomingProfileData,
+      };
+
+      setProfileData(updatedProfileData);
     }
-  }, []);
+  }, [location.state]);
 
   useEffect(() => {
-    const totalFields = Object.values(initialProfileData).reduce(
-      (acc, section) => acc + Object.keys(section).length,
+    const totalFields = Object.values(profileData).reduce(
+      (acc, section) => acc + (section ? Object.keys(section).length : 0),
       0
     );
     const filledFields = Object.values(profileData).reduce(
       (acc, section) =>
-        acc + Object.values(section).filter((value) => value !== "").length,
+        acc +
+        (section
+          ? Object.values(section).filter((value) => value !== "").length
+          : 0),
       0
     );
-    setCompletionPercentage((filledFields / totalFields) * 100);
+    setCompletionPercentage(
+      totalFields > 0 ? (filledFields / totalFields) * 100 : 0
+    );
   }, [profileData]);
 
   const handleChange = (section, field, value) => {
@@ -139,13 +106,66 @@ const ProfileCompletion = () => {
     }));
   };
 
-  const handleSubmit = async () => {
-    try {
-      const response = await axios.put("http://localhost:5000/profile", profileData, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+  const handleNestedChange = (section, subSection, field, value) => {
+    setProfileData((prevData) => ({
+      ...prevData,
+      [section]: {
+        ...prevData[section],
+        [subSection]: {
+          ...prevData[section][subSection],
+          [field]: value,
         },
+      },
+    }));
+  };
+
+  const handleAddWorkExperience = () => {
+    setProfileData((prevData) => ({
+      ...prevData,
+      workExperience: [
+        ...prevData.workExperience,
+        { company: "", duration: "", jobTitle: "" },
+      ],
+    }));
+  };
+
+  const handleRemoveWorkExperience = (index) => {
+    setProfileData((prevData) => {
+      const newWorkExperience = [...prevData.workExperience];
+      newWorkExperience.splice(index, 1);
+      return { ...prevData, workExperience: newWorkExperience };
+    });
+  };
+
+  const handleSubmit = async () => {
+    const isEmpty = (obj) => {
+      return Object.values(obj).some((value) => {
+        if (typeof value === "object" && value !== null) {
+          return isEmpty(value);
+        }
+        return (
+          value === null ||
+          value === "" ||
+          (Array.isArray(value) && value.length === 0)
+        );
       });
+    };
+
+    if (isEmpty(profileData)) {
+      console.error("Error: Some fields in profile data are empty.");
+      return;
+    }
+
+    try {
+      const response = await axios.put(
+        "http://localhost:5000/profile",
+        profileData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       if (response.status === 200) {
         console.log(response.data.message);
@@ -185,6 +205,7 @@ const ProfileCompletion = () => {
               {Object.entries(profileData.personalInfo).map(([key, value]) => (
                 <Grid item xs={12} sm={6} key={key}>
                   <TextField
+                    required
                     fullWidth
                     label={key.charAt(0).toUpperCase() + key.slice(1)}
                     value={value}
@@ -198,109 +219,75 @@ const ProfileCompletion = () => {
           </Paper>
         </Grid>
 
+        {/* Education Section */}
         <Grid item xs={12}>
           <Paper elevation={3} sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
               Education
             </Typography>
             <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Graduation Degree"
-                  value={profileData.education.graduationDegree || ""}
-                  onChange={(e) =>
-                    handleChange(
-                      "education",
-                      "graduationDegree",
-                      e.target.value
-                    )
-                  }
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Graduation University"
-                  value={profileData.education.graduationUniversity || ""}
-                  onChange={(e) =>
-                    handleChange(
-                      "education",
-                      "graduationUniversity",
-                      e.target.value
-                    )
-                  }
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Graduation Year"
-                  value={profileData.education.graduationYear || ""}
-                  onChange={(e) =>
-                    handleChange("education", "graduationYear", e.target.value)
-                  }
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Tenth Marks"
-                  value={profileData.education.tenthMarks || ""}
-                  onChange={(e) => {
-                    const marks = e.target.value;
-                    // Update both tenthMarks and tenthBoardMarks.marks
-                    handleChange("education", "tenthMarks", marks);
-                    handleChange("education", "tenthBoardMarks", {
-                      ...profileData.education.tenthBoardMarks,
-                      marks: marks,
-                    });
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Twelfth Marks"
-                  value={profileData.education.twelfthMarks || ""}
-                  onChange={(e) =>
-                    handleChange("education", "twelfthMarks", e.target.value)
-                  }
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <Typography variant="subtitle1">Tenth Board Marks</Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={6}>
+              {Object.entries(profileData.education.graduationDegree || {}).map(
+                ([key, value]) => (
+                  <Grid item xs={12} sm={6} key={key}>
                     <TextField
+                      required
                       fullWidth
-                      label="Marks"
-                      value={profileData.education.tenthBoardMarks?.marks || ""}
+                      label={key.charAt(0).toUpperCase() + key.slice(1)}
+                      value={value}
                       onChange={(e) =>
-                        handleChange("education", "tenthBoardMarks", {
-                          ...profileData.education.tenthBoardMarks,
-                          marks: e.target.value,
-                        })
+                        handleNestedChange(
+                          "education",
+                          "graduationDegree",
+                          key,
+                          e.target.value
+                        )
                       }
                     />
                   </Grid>
-                  <Grid item xs={6}>
+                )
+              )}
+              {Object.entries(profileData.education.tenthBoardMarks || {}).map(
+                ([key, value]) => (
+                  <Grid item xs={12} sm={6} key={key}>
                     <TextField
+                      required
                       fullWidth
-                      label="Percentage"
-                      value={
-                        profileData.education.tenthBoardMarks?.percentage || ""
-                      }
+                      label={`10th ${
+                        key.charAt(0).toUpperCase() + key.slice(1)
+                      }`}
+                      value={value}
                       onChange={(e) =>
-                        handleChange("education", "tenthBoardMarks", {
-                          ...profileData.education.tenthBoardMarks,
-                          percentage: e.target.value,
-                        })
+                        handleNestedChange(
+                          "education",
+                          "tenthBoardMarks",
+                          key,
+                          e.target.value
+                        )
                       }
                     />
                   </Grid>
+                )
+              )}
+              {Object.entries(
+                profileData.education.twelfthBoardMarks || {}
+              ).map(([key, value]) => (
+                <Grid item xs={12} sm={6} key={key}>
+                  <TextField
+                    required
+                    fullWidth
+                    label={`12th ${key.charAt(0).toUpperCase() + key.slice(1)}`}
+                    value={value}
+                    onChange={(e) =>
+                      handleNestedChange(
+                        "education",
+                        "twelfthBoardMarks",
+                        key,
+                        e.target.value
+                      )
+                    }
+                  />
                 </Grid>
-              </Grid>
+              ))}
             </Grid>
           </Paper>
         </Grid>
@@ -315,11 +302,9 @@ const ProfileCompletion = () => {
               {Object.entries(profileData.familyInfo).map(([key, value]) => (
                 <Grid item xs={12} sm={6} key={key}>
                   <TextField
+                    required
                     fullWidth
-                    label={
-                      key.charAt(0).toUpperCase() +
-                      key.slice(1).replace(/([A-Z])/g, " $1")
-                    }
+                    label={key.charAt(0).toUpperCase() + key.slice(1)}
                     value={value}
                     onChange={(e) =>
                       handleChange("familyInfo", key, e.target.value)
@@ -331,7 +316,153 @@ const ProfileCompletion = () => {
           </Paper>
         </Grid>
 
-        {/* Additional Info Section */}
+        {/* Work Experience Section */}
+        <Grid item xs={12}>
+          <Paper elevation={3} sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Work Experience
+            </Typography>
+            {profileData.workExperience.map((experience, index) => (
+              <Grid container spacing={2} key={index} sx={{ mb: 2 }}>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    required
+                    fullWidth
+                    label="Company"
+                    value={experience.company}
+                    onChange={(e) =>
+                      setProfileData((prevData) => {
+                        const newExperience = [...prevData.workExperience];
+                        newExperience[index].company = e.target.value;
+                        return { ...prevData, workExperience: newExperience };
+                      })
+                    }
+                  />
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    required
+                    fullWidth
+                    label="Job Title"
+                    value={experience.jobTitle}
+                    onChange={(e) =>
+                      setProfileData((prevData) => {
+                        const newExperience = [...prevData.workExperience];
+                        newExperience[index].jobTitle = e.target.value;
+                        return { ...prevData, workExperience: newExperience };
+                      })
+                    }
+                  />
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    required
+                    fullWidth
+                    label="Duration"
+                    value={experience.duration}
+                    onChange={(e) =>
+                      setProfileData((prevData) => {
+                        const newExperience = [...prevData.workExperience];
+                        newExperience[index].duration = e.target.value;
+                        return { ...prevData, workExperience: newExperience };
+                      })
+                    }
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    onClick={() => handleRemoveWorkExperience(index)}
+                  >
+                    Remove Experience
+                  </Button>
+                </Grid>
+              </Grid>
+            ))}
+            <Button variant="contained" onClick={handleAddWorkExperience}>
+              Add Work Experience
+            </Button>
+          </Paper>
+        </Grid>
+
+        {/* Future Goals Section */}
+        <Grid item xs={12}>
+          <Paper elevation={3} sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Future Goals
+            </Typography>
+            <TextField
+              fullWidth
+              label="5-Year Vision"
+              value={profileData.futureGoals.fiveYearVision}
+              onChange={(e) =>
+                handleChange("futureGoals", "fiveYearVision", e.target.value)
+              }
+            />
+          </Paper>
+        </Grid>
+
+        {/* Interests Section */}
+        <Grid item xs={12}>
+          <Paper elevation={3} sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Interests
+            </Typography>
+            <TextField
+              fullWidth
+              label="Hobbies"
+              value={profileData.interests.hobbies.join(", ")}
+              onChange={(e) =>
+                handleChange("interests", "hobbies", e.target.value.split(", "))
+              }
+            />
+          </Paper>
+        </Grid>
+
+        {/* Professional Information Section */}
+        <Grid item xs={12}>
+          <Paper elevation={3} sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Professional Information
+            </Typography>
+            <TextField
+              fullWidth
+              label="Post Applied For"
+              value={profileData.professionalInfo.postAppliedFor}
+              onChange={(e) =>
+                handleChange(
+                  "professionalInfo",
+                  "postAppliedFor",
+                  e.target.value
+                )
+              }
+            />
+          </Paper>
+        </Grid>
+
+        {/* Situational Judgment Section */}
+        <Grid item xs={12}>
+          <Paper elevation={3} sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Situational Judgment
+            </Typography>
+            <TextField
+              fullWidth
+              label="Late Work Scenario"
+              value={profileData.situationalJudgment.lateWorkScenario}
+              onChange={(e) =>
+                handleChange(
+                  "situationalJudgment",
+                  "lateWorkScenario",
+                  e.target.value
+                )
+              }
+            />
+          </Paper>
+        </Grid>
+
+        {/* Additional Information Section */}
         <Grid item xs={12}>
           <Paper elevation={3} sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
@@ -352,75 +483,18 @@ const ProfileCompletion = () => {
           </Paper>
         </Grid>
 
-        {/* Future Goals Section */}
+        {/* Submit Button */}
         <Grid item xs={12}>
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Future Goals
-            </Typography>
-            <TextField
-              fullWidth
-              label="Five Year Vision"
-              value={profileData.futureGoals.fiveYearVision}
-              onChange={(e) =>
-                handleChange("futureGoals", "fiveYearVision", e.target.value)
-              }
-            />
-          </Paper>
-        </Grid>
-
-        {/* Interests Section */}
-        <Grid item xs={12}>
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Interests
-            </Typography>
-            <TextField
-              fullWidth
-              label="Hobbies (comma separated)"
-              value={profileData.interests.hobbies.join(", ")}
-              onChange={(e) => {
-                const hobbies = e.target.value
-                  .split(",")
-                  .map((hobby) => hobby.trim());
-                handleChange("interests", "hobbies", hobbies);
-              }}
-            />
-          </Paper>
-        </Grid>
-
-        {/* Professional Info Section */}
-        <Grid item xs={12}>
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Professional Information
-            </Typography>
-            <TextField
-              fullWidth
-              label="Post Applied For"
-              value={profileData.professionalInfo.postAppliedFor}
-              onChange={(e) =>
-                handleChange(
-                  "professionalInfo",
-                  "postAppliedFor",
-                  e.target.value
-                )
-              }
-            />
-          </Paper>
+          <Button
+            variant="contained"
+            color="primary"
+            fullWidth
+            onClick={handleSubmit}
+          >
+            Submit Profile
+          </Button>
         </Grid>
       </Grid>
-
-      <Box sx={{ mt: 4 }}>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleSubmit}
-          fullWidth
-        >
-          Save Profile
-        </Button>
-      </Box>
     </Container>
   );
 };

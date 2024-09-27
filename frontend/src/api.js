@@ -1,29 +1,16 @@
 // src/api.js
 import axios from "axios";
 
+
 const API_BASE_URL = "http://localhost:5000"; // Replace with your actual API base URL
 
 // Create an axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 25000, // Set a timeout for requests
+  // timeout: 15000, // Set a timeout for requests
 });
 
-// Add a request interceptor
-api.interceptors.request.use(
-  (config) => {
-    // Get the token from local storage
-    const token = localStorage.getItem("token");
-    if (token) {
-      config.headers["Authorization"] = `Bearer ${token}`; // Set the token in headers if it exists
-    }
-    return config;
-  },
-  (error) => {
-    // Handle request error
-    return Promise.reject(error);
-  }
-);
+
 
 // Add a response interceptor
 api.interceptors.response.use(
@@ -52,7 +39,7 @@ api.interceptors.response.use(
 export const apiService = {
   signup: (data) => api.post("/signup", data), // Signup API
   login: (phone, password) => api.post("/login", { phone, password }),
-  getProfile: () => api.get("/profile"), // Get profile API
+ 
   updateProfile: (data) => api.put("/profile", data), // Update profile API
   uploadFile: (formData) =>
     api.post("/upload", formData, {

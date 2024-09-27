@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   BrowserRouter as Router,
   Route,
@@ -15,14 +15,15 @@ import ProfileCompletion from "./components/ProfileCompletion";
 import VirtualInterview from "./components/VirtualInterview";
 import AdminLogin from "./components/AdminLogin";
 import AdminDashboard from "./components/AdminDashboard";
+import { useAuth } from "./contexts/AuthContext";
 
 const theme = createTheme({
   // Your theme configuration
 });
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
-  const [isFirstTimeUser, setIsFirstTimeUser] = useState(true);
+  const { tasks, token } = useAuth();
+  console.log("tasks", tasks);
 
   return (
     <ThemeProvider theme={theme}>
@@ -32,61 +33,38 @@ function App() {
           <Route
             path="/"
             element={
-              isAuthenticated ? (
-                isFirstTimeUser ? (
-                  <Navigate to="/cv-upload" />
-                ) : (
+              token ? (
+                tasks?.["Uploading CV"] ? (
                   <Navigate to="/dashboard" />
+                ) : (
+                  <Navigate to="/cv-upload" />
                 )
               ) : (
                 <Navigate to="/login" />
               )
             }
           />
-          <Route
-            path="/login"
-            element={
-              <Login
-                setIsAuthenticated={setIsAuthenticated}
-                setIsFirstTimeUser={setIsFirstTimeUser}
-              />
-            }
-          />
-          <Route
-            path="/signup"
-            element={
-              <Signup
-                setIsAuthenticated={setIsAuthenticated}
-                setIsFirstTimeUser={setIsFirstTimeUser}
-              />
-            }
-          />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route
             path="/dashboard"
-            element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />}
+            element={token ? <Dashboard /> : <Navigate to="/login" />}
           />
           <Route
             path="/cv-upload"
-            element={
-              isAuthenticated ? (
-                <CVUpload setIsFirstTimeUser={setIsFirstTimeUser} />
-              ) : (
-                <Navigate to="/login" />
-              )
-            }
+            state={{
+              
+            }}
+            element={token ? <CVUpload /> : <Navigate to="/login" />}
           />
           <Route
             path="/profile-completion"
-            element={
-              isAuthenticated ? <ProfileCompletion /> : <Navigate to="/login" />
-            }
+            element={token ? <ProfileCompletion /> : <Navigate to="/login" />}
           />
           <Route
             path="/virtualInterview"
-            element={
-              isAuthenticated ? <VirtualInterview /> : <Navigate to="/login" />
-            }
+            element={token ? <VirtualInterview /> : <Navigate to="/login" />}
           />
           <Route path="/adminLogin" element={<AdminLogin />} />
 

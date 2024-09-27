@@ -22,6 +22,7 @@ import {
   TextField,
 } from "@mui/material";
 import { Timer, NavigateNext, Check } from "@mui/icons-material";
+import { useAuth } from "../contexts/AuthContext";
 
 const QUESTION_TIME = 30; // 30 seconds per question
 
@@ -35,7 +36,7 @@ const VirtualInterview = () => {
   const [loading, setLoading] = useState(true);
   const [interviewId, setInterviewId] = useState(null);
   const navigate = useNavigate();
-  const token = localStorage.getItem("token");
+  const {token} = useAuth();
 
   // Function to start the interview and get the interview ID
   const startInterview = async () => {
@@ -45,7 +46,7 @@ const VirtualInterview = () => {
         {},
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
         }
       );
@@ -63,7 +64,7 @@ const VirtualInterview = () => {
         `http://localhost:5000/interview-questions/${id}`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
         }
       );
@@ -84,7 +85,7 @@ const VirtualInterview = () => {
         },
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            Authorization: `Bearer ${token}`,
           },
         }
       );

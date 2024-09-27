@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { apiService } from "../api"; // Make sure to import the apiService you created
+import axios from "axios";
 
 const AuthContext = createContext();
 
@@ -8,8 +9,10 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState({});
+  const [token, setToken] = useState(null);
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   // Function to sign up a new user
@@ -17,8 +20,7 @@ export const AuthProvider = ({ children }) => {
     setError(null); // Clear previous errors
     try {
       const response = await apiService.signup({ phone, password });
-      setUser(response.user); // Set user data
-      localStorage.setItem("token", response.access_token); // Store token
+
       return response; // Return response for further use if needed
     } catch (err) {
       setError(err.message || "Something went wrong during signup");
@@ -33,8 +35,17 @@ export const AuthProvider = ({ children }) => {
       const response = await apiService.login(phone, password);
       console.log("Login response:", response);
       
-      setUser(response.user); // Set user data
-      localStorage.setItem("token", response.access_token); // Store token in localStorage
+      setToken(response.access_token); // Set token
+      const profile = await axios.get(
+        "http://localhost:5000/profile",
+        {
+          headers: {
+            Authorization: `Bearer ${response.access_token}`,
+          },
+        }
+      )
+
+      setUser(profile.data.profile);
       return response; // Return response for further use if needed
     } catch (err) {
       setError(err.message || "Invalid credentials");
@@ -47,27 +58,11 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("token"); // Remove token from localStorage
   };
 
-  // Check for user on initial load (e.g., from localStorage)
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      apiService
-        .getProfile()
-        .then((response) => {
-          setUser(response.profile); // Set user from profile data
-          setLoading(false);
-        })
-        .catch(() => {
-          setLoading(false);
-        });
-    } else {
-      setLoading(false);
-    }
-  }, []);
+  
 
   return (
     <AuthContext.Provider
-      value={{ user, signup, login, logout, loading, error }}
+      value={{ user, setUser, signup, login, logout, loading, error, token,tasks }}
     >
       {loading ? <div>Loading...</div> : children}
     </AuthContext.Provider>

@@ -46,7 +46,7 @@ const Signup = () => {
     // Call the signup function from AuthContext
     const result = await signup(phoneNumber, password);
 
-    if (result && !error) {
+    if (result) {
       setSnackbarMessage("User created successfully!"); // Success message
       setSnackbarSeverity("success");
       navigate("/cv-upload"); // Navigate to CV upload page on successful signup

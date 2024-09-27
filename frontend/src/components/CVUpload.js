@@ -9,16 +9,14 @@ import {
   Alert,
 } from "@mui/material";
 import { useAuth } from "../contexts/AuthContext"; // Import AuthContext for authentication
-import { apiService } from "../api"; // Import the apiService for API calls
+import api, { apiService } from "../api"; // Import the apiService for API calls
 
 const CVUpload = () => {
   const [file, setFile] = useState(null);
-
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
-  const { user } = useAuth(); // Access user information from AuthContext
-
+  const { user, setUser, token } = useAuth(); // Access user information from AuthContext
   const navigate = useNavigate();
 
   const handleFileChange = (e) => {
@@ -40,16 +38,23 @@ const CVUpload = () => {
 
     try {
       // Call the upload API
-      const response = await apiService.uploadFile(formData);
+      const response = await api.post("/upload", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${token}`,
+        },
+      });
       console.log("Upload response:", response);
 
-      // Save extracted data to localStorage
-      localStorage.setItem("profileData", JSON.stringify(response));
-
+      setUser(response);
       setSnackbarMessage("CV uploaded successfully!");
       setSnackbarSeverity("success");
       setSnackbarOpen(true);
-      navigate("/profile-completion");
+
+      // Pass the uploaded CV data to the ProfileCompletion page
+      navigate("/profile-completion", {
+        state: { profileData: response },
+      });
     } catch (error) {
       setSnackbarMessage(error.message || "Error uploading CV");
       setSnackbarSeverity("error");

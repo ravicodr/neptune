@@ -14,7 +14,7 @@ import {
 import { useAuth } from "../contexts/AuthContext"; // Import the AuthContext
 
 const Login = () => {
-  const [phoneNumber, setPhoneNumber] = useState(1234567890);
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
@@ -26,10 +26,10 @@ const Login = () => {
 
     // Attempt to login using the AuthContext
     const result = await login(phoneNumber, password);
-    
-    
-    if (result && !error) {
-      navigate("/dashboard"); // Navigate to the dashboard on successful login
+    console.log("Login result:", result);
+
+    if (result) {
+      navigate("/");
     } else if (error) {
       setSnackbarMessage(error); // Set the snackbar message to display the error
       setSnackbarOpen(true); // Open the snackbar for error message
