@@ -1,0 +1,43 @@
+{
+    "additionalInfo": {
+        "otherInformation": "3 years Work Experience of sales executive in Shiv Shakti Poultry Equipments in Gorakhpur UP"
+    },
+    "education": {
+        "graduationDegree": "Graduate From Dr R.M.L.A.UNI. FZD-2021",
+        "tenthBoardMarks": {
+            "marks": "NA",
+            "percentage": "NA"
+        }
+    },
+    "familyInfo": {
+        "fathersProfession": null,
+        "mothersProfession": null,
+        "parentsAnnualIncome": null
+    },
+    "futureGoals": {
+        "fiveYearVision": null
+    },
+    "interests": {
+        "hobbies": [
+            "Reading Books",
+            "Cricket",
+            "Outdoor Sports"
+        ]
+    },
+    "personalInfo": {
+        "category": null,
+        "emailId": "ankitsuresh4353mis@gmail.com",
+        "name": "Ankit Mishra",
+        "number": [
+            "9554435314",
+            "6386882269"
+        ],
+        "religion": "Hindu"
+    },
+    "professionalInfo": {
+        "postAppliedFor": null
+    },
+    "situationalJudgment": {
+        "lateWorkScenario": null
+    }
+}
