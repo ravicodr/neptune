@@ -101,7 +101,8 @@ stages:
                       # sudo systemctl restart flask-app
                       
                       # Configure Nginx
-                      sudo tee /etc/nginx/sites-available/myapp <<EOF
+                      sudo ln -sf /etc/nginx/sites-available/myapp /etc/nginx/sites-enabled/
+                      # sudo tee /etc/nginx/sites-available/myapp <<EOF
                       server {
                           listen 80;
                           server_name example.com;
