@@ -3,7 +3,6 @@ pymongo[srv]
 Flask-PyMongo
 flask-login
 python-dotenv
-dotenv
 requests
 openai
 pyjwt

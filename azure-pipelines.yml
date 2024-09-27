@@ -1,73 +1,116 @@
-# Node.js with React
-# Build a Node.js project that uses React.
-# Add steps that analyze code, save build artifacts, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/javascript
-
 trigger:
-  branches:
-    include:
-      - main
+  - main
 
-pool: 'Default'
+stages:
+  - stage: Build
+    jobs:
+      - job: BuildReactApp
+        pool:
+          name: 'Azure Pipelines'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '21.x'
+          - script: |
+              cd frontend
+              npm install
+              npm run build
+            displayName: 'Build React App'
+          - publish: $(System.DefaultWorkingDirectory)/frontend/build
+            artifact: react-build
 
-steps:
-  - checkout: self
+      - job: BuildFlaskApp
+        pool:
+          name: 'Azure Pipelines'
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '3.x'
+          - script: |
+              cd flask-app
+              python -m venv venv
+              source venv/bin/activate
+              pip install -r backend/requirements.txt
+            displayName: 'Set up Flask environment'
+          - publish: $(System.DefaultWorkingDirectory)/backend
+            artifact: flask-app
 
-  - task: Bash@3
-    inputs:
-      targetType: inline
-      script: |
-        cd $(Build.SourcesDirectory)
-        ls
-        pwd
+  - stage: Deploy
+    jobs:
+      - deployment: DeployToVM
+        pool:
+          name: 'Default'
+        environment: 'production'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: DownloadPipelineArtifact@2
+                  inputs:
+                    artifactName: 'react-build'
+                    targetPath: '$(Pipeline.Workspace)/react-build'
+                
+                - task: DownloadPipelineArtifact@2
+                  inputs:
+                    artifactName: 'flask-app'
+                    targetPath: '$(Pipeline.Workspace)/flask-app'
 
-  - task: ArchiveFiles@2
-    inputs: 
-      rootFolderOrFile: '$(Build.SourcesDirectory)'
-      includeRootFolder: false
-      archiveType: 'tar'
-      archiveFile: '$(Build.ArtifactStagingDirectory)/XYZ.tar.gz'
-  
-  - task: CopyFilesOverSSH@0
-    inputs:
-      sshEndpoint: 'VM-connection'
-      sourceFolder: '$(Build.ArtifactStagingDirectory)'
-      contents: 'XYZ.tar.gz'
-      targetFolder: '/home/azureuser'
-  
-  # - task: SSH@0
-  #   inputs:
-  #     sshEndpoint:  'VM-connection'
-  #     runOptions: 'commands'
-  #     commands: |
-  #       sudo apt update
-  #       sudo apt install python3
-  #       sudo apt install pip3
-  #       tar -xvf /home/azureuser/XYZ.tar.gz -C /home/azureuser
-  #       sudo rm /home/azureuser/XYZ.tar.gz
-  #       sudo apt update && apt upgrade -y
-  #       sudo apt-get install python3-pip
-  #       pip install -r /home/azureuser/backend/requirements.txt
-  #       sudo apt update
-  #       sudo apt install curl
-  #       sudo curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-  #       sudo apt-get install node.js -y
-  #       sudo apt install nginx -y
-  #       cd frontend
-  #       npm install
-  #       npm run build
-  #       sudo cp -r /home/azureuser/frontend/dist /var/www/html/
-  #       cd ~
-  #       cd /home/azureuser/backend
-  #       flask run --debug
-  #       sudo systemctl restart nginx
+                - task: SSH@0
+                  inputs:
+                    sshEndpoint: 'VM-connection'
+                    runOptions: 'commands'
+                    commands: |
+                      sudo chmod -R 777 /var/www
+                      mkdir '/var/www/react-app'
+                      mkdir '/var/www/flask-app'
+                - task: CopyFilesOverSSH@0
+                  inputs:
+                    sshEndpoint: 'VM-connection'
+                    sourceFolder: '$(Pipeline.Workspace)/react-build/'
+                    contents: '**'
+                    targetFolder: '/var/www/react-app/'
+                
+                - task: CopyFilesOverSSH@0
+                  inputs:
+                    sshEndpoint: 'VM-connection'
+                    sourceFolder: '$(Pipeline.Workspace)/flask-app/'
+                    contents: '**'
+                    targetFolder: '/var/www/flask-app/'
 
-#   - task: NodeTool@0
-#     inputs:
-#       versionSpec: '20.x'
-#     displayName: 'Install Node.js'
+                - task: SSH@0
+                  inputs:
+                    sshEndpoint: 'VM-connection'
+                    runOptions: 'inline'
+                    inline: |
+                      sudo apt-get update
+                      sudo apt-get install -y nginx python3-venv
+                      
+                      # Set up Flask app
+                      cd /var/www/flask-app
+                      python3 -m venv venv
+                      source venv/bin/activate
+                      pip install -r requirements.txt
+                      sudo systemctl restart flask-app
+                      
+                      # Configure Nginx
+                      sudo tee /etc/nginx/sites-available/myapp <<EOF
+                      server {
+                          listen 80;
+                          server_name example.com;
 
-# - script: |
-#     npm install
-#     npm run build
-#   displayName: 'npm install and build'
+                          location / {
+                              root /var/www/react-app;
+                              try_files \$uri /index.html;
+                          }
+
+                          location /api {
+                              proxy_pass http://localhost:5000;
+                              proxy_set_header Host \$host;
+                              proxy_set_header X-Real-IP \$remote_addr;
+                          }
+                      }
+                      EOF
+
+                      sudo ln -s /etc/nginx/sites-available/myapp /etc/nginx/sites-enabled/
+                      sudo nginx -t
+                      sudo systemctl restart nginx
