@@ -33,13 +33,14 @@ jwt = JWTManager(app)
 # Configuration
 API_KEY=os.environ["API_KEY"]
 # BASE_URL = os.environ["BASE_URL"]
-UPLOAD_FOLDER=os.environ['UPLOAD_FOLDER']
+UPLOAD_FOLDER=/uploads/
 ASSISTANT_ID_CV=os.environ['ASSISTANT_ID_CV_EVALUATOR']
 ASSISTANT_ID_EQ_Q=os.environ['ASSISTANT_EQ_Q_GENERATOR']
 MONGO_DB_URI=os.environ['MONGODB_URI']
 # MONGO_DB_URI=os.environ('MONGODB_URI')
 DB_NAME=os.environ['DB_NAME']
 JWT_SECRET_KEY=os.environ['JWT_SECRET_KEY']
+
 
 
 # MONGO_DB_URI="mongodb+srv://ishwari:Ganesh%4024@testdb.a204r.mongodb.net/student_db"
