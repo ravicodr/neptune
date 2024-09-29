@@ -1,0 +1,11 @@
+Flask
+pymongo[srv]
+Flask-PyMongo
+flask-login
+python-dotenv
+requests
+openai
+pyjwt
+flask_bcrypt
+flask_jwt_extended
+flask_cors

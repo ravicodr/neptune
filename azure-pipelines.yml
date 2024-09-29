@@ -1,40 +1,129 @@
 trigger:
-- main
+  - main
 
-pool:
-  vmImage: ubuntu-latest
+stages:
+  - stage: Build
+    jobs:
+      - job: BuildReactApp
+        pool:
+          name: 'Azure Pipelines'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '21.x'
+          - script: |
+              cd frontend
+              npm install
+              npm run build
+            displayName: 'Build React App'
+          - publish: $(System.DefaultWorkingDirectory)/frontend/build
+            artifact: react-build
 
-strategy:
-  matrix:
-    Python310:
-      python.version: '3.10'
-    Python311:
-      python.version: '3.11'
-    Python312:
-      python.version: '3.12'
+      - job: BuildFlaskApp
+        pool:
+          name: 'Azure Pipelines'
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '3.x'
+          - script: |
+              cd flask-app
+              python -m venv venv
+              source venv/bin/activate
+              pip install -r backend/requirements.txt
+            displayName: 'Set up Flask environment'
+          - publish: $(System.DefaultWorkingDirectory)/backend
+            artifact: flask-app
 
-steps:
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: '$(python.version)'
-    displayName: 'Use Python $(python.version)'
+  - stage: Deploy
+    jobs:
+      - deployment: DeployToVM
+        pool:
+          name: 'Default'
+        environment: 'production'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: DownloadPipelineArtifact@2
+                  inputs:
+                    artifactName: 'react-build'
+                    targetPath: '$(Pipeline.Workspace)/react-build'
+                
+                - task: DownloadPipelineArtifact@2
+                  inputs:
+                    artifactName: 'flask-app'
+                    targetPath: '$(Pipeline.Workspace)/flask-app'
 
-  - script: |
-      python -m pip install --upgrade pip
-      pip install -r requirements.txt
-    displayName: 'Install dependencies'
+                - task: SSH@0
+                  inputs:
+                    sshEndpoint: 'VM-connection'
+                    runOptions: 'commands'
+                    commands: |
+                      sudo chmod -R 777 /var/www
+                      sudo rm -r '/var/www/react-app'
+                      sudo rm -r '/var/www/flask-app'
+                      mkdir -p '/var/www/react-app'
+                      mkdir -p '/var/www/flask-app'
+                      
+                - task: CopyFilesOverSSH@0
+                  inputs:
+                    sshEndpoint: 'VM-connection'
+                    sourceFolder: '$(Pipeline.Workspace)/react-build/'
+                    contents: '**'
+                    targetFolder: '/var/www/react-app/'
+                
+                - task: CopyFilesOverSSH@0
+                  inputs:
+                    sshEndpoint: 'VM-connection'
+                    sourceFolder: '$(Pipeline.Workspace)/flask-app/'
+                    contents: '**'
+                    targetFolder: '/var/www/flask-app/'
 
-  - task: ArchiveFiles@2
-    displayName: 'Archive files'
-    inputs:
-      rootFolderOrFile: $(System.DefaultWorkingDirectory)
-      includeRootFolder: false
-      archiveType: zip
-      archiveFile: $(Build.ArtifactStagingDirectory)/$(Build.BuildId)-$(python.version).zip
-      replaceExistingArchive: true
+                - task: SSH@0
+                  inputs:
+                    sshEndpoint: 'VM-connection'
+                    runOptions: 'inline'
+                    inline: |
+                      sudo apt-get update
+                      sudo apt-get install -y nginx python3-venv
+                       
+                      # Set up Flask app
+                      cd /var/www/flask-app
+                      python3 -m venv venv
+                      source venv/bin/activate
+                      pip install -r requirements.txt
+                      export API_KEY=$(API_KEY)
+                      export ASSISTANT_EQ_Q_GENERATOR=$(ASSISTANT_EQ_Q_GENERATOR)
+                      export ASSISTANT_ID_CV_EVALUATOR=$(ASSISTANT_ID_CV_EVALUATOR)
+                      export DB_NAME=$(DB_NAME)
+                      export JWT_SECRET_KEY=$(JWT_SECRET_KEY)
+                      export MONGODB_URI=$(MONGODB_URI)
+                      # sudo nano /etc/systemd/system/flask-app.service
+                      
+                      # sudo systemctl restart flask-app
+                      
+                      # Configure Nginx
+                      sudo ln -sf /etc/nginx/sites-available/myapp /etc/nginx/sites-enabled/
+                      # sudo tee /etc/nginx/sites-available/myapp <<EOF
+                      server {
+                          listen 80;
+                          server_name example.com;
 
-  - task: PublishBuildArtifacts@1
-    inputs:
-      PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-      ArtifactName: 'drop'
-      publishLocation: 'Container'
+                          location / {
+                              root /var/www/react-app;
+                              try_files \$uri /index.html;
+                          }
+
+                          location /api/ {
+                              proxy_pass http://localhost:5000/;
+                              proxy_set_header Host \$host;
+                              proxy_set_header X-Real-IP \$remote_addr;
+                          }
+                      } 
+                      EOF
+
+                      sudo ln -s /etc/nginx/sites-available/myapp /etc/nginx/sites-enabled/
+                      sudo nginx -t
+                      sudo systemctl restart nginx
+                      (cd $(BACKENDFOLDER) && flask run --debug)
