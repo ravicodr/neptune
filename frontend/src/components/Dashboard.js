@@ -6,7 +6,6 @@ import {
   Typography,
   Grid,
   Box,
-  Avatar,
   Chip,
   Button,
   List,
@@ -22,7 +21,6 @@ import {
   Work,
   AttachMoney,
   Psychology,
-  Notifications,
   Phone,
   Home,
   PlayArrow,
@@ -31,6 +29,7 @@ import {
   Cancel,
 } from "@mui/icons-material";
 import { useAuth } from "../contexts/AuthContext";
+import api from "../api";
 
 const StudentDashboard = () => {
   const [studentData, setStudentData] = useState(null);
@@ -41,41 +40,43 @@ const StudentDashboard = () => {
   useEffect(() => {
     const fetchStudentData = async () => {
       try {
-        const response = await fetch("http://localhost:5000/profile", {
+        const response = await api.get("/profile", {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
 
-        if (!response.ok) {
-          throw new Error("Network response was not ok");
-        }
+        console.log("Response:", response);
 
-        let data = await response.json();
+        let data = await response.data;
         console.log("Student data:", data);
         data = data?.profile;
 
         // Transforming data to match your component's structure
         setStudentData({
           name: data?.personalInfo?.name || "Name not provided",
-          email: data?.personalInfo?.email || "Email not provided",
-          avatar: "https://via.placeholder.com/100", // Replace with actual avatar URL
+          email: data?.personalInfo?.emailId || "Email not provided",
           applicationStatus: "Under Review", // Assuming this will come from your API
           personalInfo: {
-            phone: data?.personalInfo?.phone || "Phone number not provided",
-            address: "Address not provided", // This can be added in the API response if available
+            phone:
+              data?.personalInfo?.mobileNumber[0] ||
+              data?.personalInfo?.number[0] ||
+              "Phone number not provided",
+            address: "Address not provided", // Static value; can be enhanced
           },
           education: {
             graduationDegree:
               data?.education?.graduationDegree || "Degree not provided",
-            tenthMarks: data?.education?.tenthMarks || "Marks not provided",
+            tenthMarks:
+              data?.education?.tenthBoardMarks?.percentage ||
+              "Marks not provided",
           },
           parentInfo: {
             income:
               data?.familyInfo?.parentsAnnualIncome || "Income not provided",
             occupation: (() => {
-              const fatherProfession = data?.familyInfo?.fatherProfession;
-              const motherProfession = data?.familyInfo?.motherProfession;
+              const fatherProfession = data?.familyInfo?.fathersProfession;
+              const motherProfession = data?.familyInfo?.mothersProfession;
               if (fatherProfession && motherProfession) {
                 return `${fatherProfession} & ${motherProfession}`;
               } else if (fatherProfession) {
@@ -87,16 +88,25 @@ const StudentDashboard = () => {
               }
             })(),
           },
-
           iqEqTest: {
             completed: true, // Assuming this will come from your API
             score: 75, // Assuming a static value or derive it from the API
           },
           notifications: [
-            "Your application has been received and is under review.", // Keep dummy data here
-            "Please complete your IQ/EQ test before the interview.", // Keep dummy data here
-            "Interview scheduled for October 1, 2024 at 10:00 AM.", // Keep dummy data here
+            response.data.tasks["Uploading CV"]
+              ? "CV uploaded successfully"
+              : "CV not uploaded",
+            response.data.tasks["Completing the Profile"]
+              ? "Resume uploaded successfully"
+              : "Resume not uploaded",
+            response.data.tasks["Starting the EQ test"]
+              ? "EQ test started successfully"
+              : "EQ test not started",
+            response.data.tasks["Submit EQ test"]
+              ? "EQ test submitted successfully"
+              : "EQ test not submitted",
           ],
+          interviewSubmitted: response.data.tasks["Start Interview"], // Add this line to track interview submission
         });
       } catch (error) {
         console.error("Error fetching student data:", error);
@@ -106,10 +116,10 @@ const StudentDashboard = () => {
     };
 
     fetchStudentData();
-  }, []);
+  }, [token]);
 
   const handleStartInterview = () => {
-    navigate("/virtualInterview");
+    navigate("/virtual-interview");
   };
 
   const getStatusIcon = (status) => {
@@ -126,7 +136,7 @@ const StudentDashboard = () => {
   };
 
   const calculateProfileCompletion = (data) => {
-    const totalFields = 10; // Update this based on the number of fields
+    const totalFields = 9; // Updated based on the relevant fields
     const filledFields = [
       data?.personalInfo.name,
       data?.personalInfo.email,
@@ -135,9 +145,8 @@ const StudentDashboard = () => {
       data?.education.tenthMarks,
       data?.parentInfo.income,
       data?.parentInfo.occupation,
-
       data?.iqEqTest.completed,
-      data?.notifications.length,
+      data?.notifications.length > 0, // At least one notification
     ].filter(Boolean).length;
 
     return (filledFields / totalFields) * 100;
@@ -148,7 +157,7 @@ const StudentDashboard = () => {
   }
 
   if (!studentData) {
-    return <Typography>Error loading student data?.</Typography>;
+    return <Typography>Error loading student data.</Typography>;
   }
 
   const profileCompletion = calculateProfileCompletion(studentData);
@@ -177,7 +186,6 @@ const StudentDashboard = () => {
       <Grid container spacing={3}>
         <Grid item xs={12} md={4}>
           <Paper elevation={3} sx={{ p: 3, textAlign: "center" }}>
-            
             <Typography variant="h5">{studentData.name}</Typography>
             <Typography color="textSecondary">{studentData.email}</Typography>
           </Paper>
@@ -273,7 +281,9 @@ const StudentDashboard = () => {
                 </ListItemIcon>
                 <ListItemText
                   primary="Annual Income"
-                  secondary={`₹${studentData.parentInfo.income.toLocaleString()}`}
+                  secondary={`₹${parseInt(
+                    studentData.parentInfo.income
+                  ).toLocaleString()}`}
                 />
               </ListItem>
               <Divider component="li" />
@@ -301,6 +311,7 @@ const StudentDashboard = () => {
               sx={{ mt: 2 }}
               startIcon={<PlayArrow />}
               onClick={handleStartInterview}
+              disabled={studentData.interviewSubmitted} // Disable button if already submitted
             >
               Start Interview
             </Button>

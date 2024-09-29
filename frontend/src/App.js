@@ -20,10 +20,14 @@ import { useAuth } from "./contexts/AuthContext";
 const theme = createTheme({
   // Your theme configuration
 });
+console.log("Current environment:", process.env.REACT_APP_NODE_ENV);
+console.log("Current Dev environment", process.env.REACT_APP_API_BASE_URL_DEV);
+console.log("Current Prod environment:", process.env.REACT_APP_API_BASE_URL_PROD);
+
+
 
 function App() {
   const { tasks, token } = useAuth();
-  console.log("tasks", tasks);
 
   return (
     <ThemeProvider theme={theme}>
@@ -35,7 +39,11 @@ function App() {
             element={
               token ? (
                 tasks?.["Uploading CV"] ? (
-                  <Navigate to="/dashboard" />
+                  tasks?.["Completing the Profile"] ? (
+                    <Navigate to="/dashboard" />
+                  ) : (
+                    <Navigate to="/profile-completion" />
+                  )
                 ) : (
                   <Navigate to="/cv-upload" />
                 )
@@ -53,9 +61,7 @@ function App() {
           />
           <Route
             path="/cv-upload"
-            state={{
-              
-            }}
+            state={{}}
             element={token ? <CVUpload /> : <Navigate to="/login" />}
           />
           <Route
@@ -63,7 +69,7 @@ function App() {
             element={token ? <ProfileCompletion /> : <Navigate to="/login" />}
           />
           <Route
-            path="/virtualInterview"
+            path="/virtual-interview"
             element={token ? <VirtualInterview /> : <Navigate to="/login" />}
           />
           <Route path="/adminLogin" element={<AdminLogin />} />

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { apiService } from "../api"; // Make sure to import the apiService you created
-import axios from "axios";
+import api from "../api";
 
 const AuthContext = createContext();
 
@@ -19,8 +19,8 @@ export const AuthProvider = ({ children }) => {
   const signup = async (phone, password) => {
     setError(null); // Clear previous errors
     try {
-      const response = await apiService.signup({ phone, password });
-
+      const response = await api.post("/signup", { phone, password });
+      console.log("Signup response:", response);
       return response; // Return response for further use if needed
     } catch (err) {
       setError(err.message || "Something went wrong during signup");
@@ -32,20 +32,17 @@ export const AuthProvider = ({ children }) => {
   const login = async (phone, password) => {
     setError(null); // Clear previous errors
     try {
-      const response = await apiService.login(phone, password);
+      const response = await api.post("/login", { phone, password });
       console.log("Login response:", response);
+      setToken(response.data.access_token);
       
-      setToken(response.access_token); // Set token
-      const profile = await axios.get(
-        "http://localhost:5000/profile",
-        {
-          headers: {
-            Authorization: `Bearer ${response.access_token}`,
-          },
-        }
-      )
-
+      const profile = await api.get("/profile", {
+        headers: {
+          Authorization: `Bearer ${response.data.access_token}`,
+        },
+      });
       setUser(profile.data.profile);
+      setTasks(profile.data.tasks);
       return response; // Return response for further use if needed
     } catch (err) {
       setError(err.message || "Invalid credentials");
@@ -58,11 +55,19 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("token"); // Remove token from localStorage
   };
 
-  
-
   return (
     <AuthContext.Provider
-      value={{ user, setUser, signup, login, logout, loading, error, token,tasks }}
+      value={{
+        user,
+        setUser,
+        signup,
+        login,
+        logout,
+        loading,
+        error,
+        token,
+        tasks,
+      }}
     >
       {loading ? <div>Loading...</div> : children}
     </AuthContext.Provider>

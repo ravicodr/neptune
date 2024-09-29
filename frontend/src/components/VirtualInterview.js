@@ -23,6 +23,7 @@ import {
 } from "@mui/material";
 import { Timer, NavigateNext, Check } from "@mui/icons-material";
 import { useAuth } from "../contexts/AuthContext";
+import api from "../api";
 
 const QUESTION_TIME = 30; // 30 seconds per question
 
@@ -36,13 +37,13 @@ const VirtualInterview = () => {
   const [loading, setLoading] = useState(true);
   const [interviewId, setInterviewId] = useState(null);
   const navigate = useNavigate();
-  const {token} = useAuth();
+  const { token } = useAuth();
 
   // Function to start the interview and get the interview ID
   const startInterview = async () => {
     try {
-      const response = await axios.post(
-        "http://localhost:5000/start-virtual-interview",
+      const response = await api.post(
+        "/start-virtual-interview",
         {},
         {
           headers: {
@@ -60,14 +61,13 @@ const VirtualInterview = () => {
   // Function to fetch questions based on the interview ID
   const fetchQuestions = async (id) => {
     try {
-      const response = await axios.get(
-        `http://localhost:5000/interview-questions/${id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await api.get(`/interview-questions/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      console.log({"response": response});
+      
       setQuestions(response.data.questions);
       setLoading(false);
     } catch (error) {
@@ -78,10 +78,10 @@ const VirtualInterview = () => {
 
   const handleSubmitInterview = async () => {
     try {
-      const response = await axios.post(
-        `http://localhost:5000/submit-interview/${interviewId}`,
+      const response = await api.post(
+        `/submit-interview/${interviewId}`,
         {
-          answers: answers,
+          answers,
         },
         {
           headers: {
