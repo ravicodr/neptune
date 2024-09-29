@@ -97,7 +97,7 @@ stages:
                       export JWT_SECRET_KEY=$(JWT_SECRET_KEY)
                       export MONGODB_URI=$(MONGODB_URI)
                       # sudo nano /etc/systemd/system/flask-app.service
-                      flask run --debug
+                      (cd $(BACKENDFOLDER) && flask run --debug)
                       # sudo systemctl restart flask-app
                       
                       # Configure Nginx
