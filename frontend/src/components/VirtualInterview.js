@@ -66,8 +66,9 @@ const VirtualInterview = () => {
           Authorization: `Bearer ${token}`,
         },
       });
-      console.log({"response": response});
-      
+      console.log({ response: response });
+      console.log({ "response.data.questions": response.data.questions });
+
       setQuestions(response.data.questions);
       setLoading(false);
     } catch (error) {

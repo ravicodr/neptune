@@ -58,8 +58,7 @@ const StudentDashboard = () => {
           email: data?.personalInfo?.emailId || "Email not provided",
           applicationStatus: "Under Review", // Assuming this will come from your API
           personalInfo: {
-            phone:
-              data?.personalInfo?.mobileNumber[0] ||
+            number:
               data?.personalInfo?.number[0] ||
               "Phone number not provided",
             address: "Address not provided", // Static value; can be enhanced
