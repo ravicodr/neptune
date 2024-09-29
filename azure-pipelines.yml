@@ -117,8 +117,7 @@ stages:
                               proxy_set_header Host \$host;
                               proxy_set_header X-Real-IP \$remote_addr;
                           }
-                      }
-                      <<EOF
+                       } EOF
 
                       sudo ln -s /etc/nginx/sites-available/myapp /etc/nginx/sites-enabled/
                       sudo nginx -t
