@@ -61,8 +61,11 @@ stages:
                     runOptions: 'commands'
                     commands: |
                       sudo chmod -R 777 /var/www
+                      sudo rm -r '/var/www/react-app'
+                      sudo rm -r '/var/www/flask-app'
                       mkdir -p '/var/www/react-app'
                       mkdir -p '/var/www/flask-app'
+                      
                 - task: CopyFilesOverSSH@0
                   inputs:
                     sshEndpoint: 'VM-connection'
@@ -84,7 +87,7 @@ stages:
                     inline: |
                       sudo apt-get update
                       sudo apt-get install -y nginx python3-venv
-                      
+                       
                       # Set up Flask app
                       cd /var/www/flask-app
                       python3 -m venv venv
