@@ -97,7 +97,7 @@ stages:
                       export JWT_SECRET_KEY=$(JWT_SECRET_KEY)
                       export MONGODB_URI=$(MONGODB_URI)
                       # sudo nano /etc/systemd/system/flask-app.service
-                      flask run --debug
+                      (cd $(BACKENDFOLDER) && flask run --debug)
                       # sudo systemctl restart flask-app
                       
                       # Configure Nginx
@@ -112,8 +112,8 @@ stages:
                               try_files \$uri /index.html;
                           }
 
-                          location /api {
-                              proxy_pass http://localhost:5000;
+                          location /api/ {
+                              proxy_pass http://localhost:5000/;
                               proxy_set_header Host \$host;
                               proxy_set_header X-Real-IP \$remote_addr;
                           }
