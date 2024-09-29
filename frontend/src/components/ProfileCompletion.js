@@ -39,7 +39,7 @@ const initialProfileData = {
     category: "",
     emailId: "",
     name: "",
-    number: [],
+    mobileNumber: "",
     religion: "",
   },
   professionalInfo: {

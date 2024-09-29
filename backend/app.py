@@ -33,13 +33,14 @@ jwt = JWTManager(app)
 # Configuration
 API_KEY=os.environ["API_KEY"]
 # BASE_URL = os.environ["BASE_URL"]
-UPLOAD_FOLDER=/uploads/
+UPLOAD_FOLDER="/uploads/"
 ASSISTANT_ID_CV=os.environ['ASSISTANT_ID_CV_EVALUATOR']
 ASSISTANT_ID_EQ_Q=os.environ['ASSISTANT_EQ_Q_GENERATOR']
 MONGO_DB_URI=os.environ['MONGODB_URI']
 # MONGO_DB_URI=os.environ('MONGODB_URI')
 DB_NAME=os.environ['DB_NAME']
 JWT_SECRET_KEY=os.environ['JWT_SECRET_KEY']
+
 
 
 
@@ -61,7 +62,7 @@ CORS(app)
 
 @app.after_request
 def after_request(response):
-    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Origin', 'http://localhost:3000')
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
     return response
@@ -147,7 +148,7 @@ def profile():
         
         result = mongo.db.students.update_one(
             {"_id": ObjectId(current_user_id)},
-            {"$set": {"profile": profile_data,"tasks":{"Completing the Profile":True}}},
+            {"$set": {"profile": profile_data,"tasks":{"Completing the Profile":True,"Starting the EQ test":False,"Submit EQ test":False,"Uploading CV":True}}},
         )
         
         if result.modified_count:
@@ -247,7 +248,7 @@ def upload_file_and_run_thread():
     
     result = mongo.db.students.update_one(
         {"_id": ObjectId(current_user_id)},
-        {"$set": {"tasks": {"Uploading CV": True}}}
+        {"$set": {"tasks": {"Uploading CV": True,"Completing the Profile": False,"Starting the EQ test": False,"Submit EQ test": False}}},
     )
             
     client.close()
@@ -307,7 +308,7 @@ def start_virtual_interview():
         structured_response["id"]=ObjectId()
         result = mongo.db.students.update_one(
             {'_id': ObjectId(current_user_id)},
-            {'$addToSet': {'interviews': structured_response, 'tasks': {'Starting Virtual Interview': True}}}
+            {'$set': {'interviews': structured_response, 'tasks': {'Starting Virtual Interview': True,'Completing the Profile': True,'Starting the EQ test': True,'Submit EQ test': False,'Uploading CV': True}}},
         )
         
         print(result)
@@ -330,11 +331,13 @@ def interview_questions(interviewId):
 
     result = mongo.db.students.find_one({"_id": ObjectId(current_user_id), "interviews.id": ObjectId(interviewId)},
                                          {"interviews.$": 1})
+    print(result)
     
     if result and 'interviews' in result and len(result['interviews']) > 0:
+        
         return {
-            "id": str(result['interviews'][0]['id']),
-            "questions": result['interviews'][0]['eq_questions']
+            "id": str(result['interviews']['id']),
+            "questions": result['interviews']['eq_questions']
         }
     return jsonify({"message": "Interview not found"}), 404
 
@@ -358,8 +361,8 @@ def submit_interview(interviewId):
     if not result or 'interviews' not in result:
         return jsonify({"message": "Interview not found"}), 404
 
-    interview = result['interviews'][0]
-    questions = interview['eq_questions']  # Ensure this field exists
+    interview = result['interviews']
+    questions = interview['eq_questions'] 
     total_score = 0
 
     for idx, answer in enumerate(answers):
@@ -382,45 +385,57 @@ def submit_interview(interviewId):
     rejectionReason = None
     if student:
         # 1. ITI trade condition
-        iti_trade = next((edu["graduationDegree"] for edu in student.get("education", []) if "ITI" in edu.get("degree", "").upper()), None)
+        iti_trade=student["profile"]["education"]["graduationDegree"]
+        # iti_trade = next((edu["graduationDegree"] for edu in student.get("education", []) if "ITI" in edu.get("degree", "").upper()), None)
         if iti_trade and iti_trade.upper() not in ["ELECTRONICS", "ELECTRICAL"]:
             print(f"Candidate is not eligible due to ITI trade: {iti_trade}")
             rejectionReason = "Degree not eligible for virtual interview"
-            return
+            print(iti_trade)
+            
 
         # 2. Parents' income condition
-        parents_income = student.get("familyInfo", {}).get("parentsAnnualIncome", 0)
-        if parents_income > 1500000:  # 15 lac in rupees
+        parents_income=student["profile"]["familyInfo"]["parentsAnnualIncome"]
+        # parents_income = student.get("familyInfo", {}).get("parentsAnnualIncome", 0)
+        if int(parents_income) > 1500000:  # 15 lac in rupees
             print("Candidate is not eligible due to high parents' income.")
             rejectionReason = "Annual Income not eligible for virtual interview"
-            return
+            print(parents_income)
+            
 
         # 3. Parents' profession condition
-        parent_professions = [student.get("familyInfo", {}).get("fatherProfession"), 
-                            student.get("familyInfo", {}).get("motherProfession")]
+        parent_professions = [student.get("profile", {}).get("familyInfo", {}).get("fatherProfession"), 
+                            student.get("profile", {}).get("familyInfo", {}).get("motherProfession")]
         if any(prof in ["JUDGE", "IAS", "IPS"] for prof in parent_professions if prof):
             print("Candidate is not eligible due to parent's profession.")
             rejectionReason = "Profession not eligible for virtual interview"
-            return
+            print(parent_professions)
+           
 
         # 4. IQ/EQ questions condition
-        
         if total_score < 70:
             print("Candidate is not eligible due to low IQ/EQ score.")
             rejectionReason = "IQ/EQ score not eligible for virtual interview"
-            return
+            
 
         # 5. 10th marks condition
-        tenth_marks = next((float(edu["tenthBoardMarks"]["percentage"]) for edu in student.get("education", [])))                 
+        # tenth_marks = next((float(edu["tenthBoardMarks"]["percentage"]) student.get("education"))))                 
+        # iti_trade = next((edu["graduationDegree"] for edu in student.get("education", []) if "ITI" in edu.get("degree", "").upper()), None)
+        tenth_marks=int(student["profile"]["education"]["tenthBoardMarks"]["percentage"])
         if tenth_marks is not None and tenth_marks > 80:
             print(f"Candidate is not eligible due to high 10th marks: {tenth_marks}%")
             rejectionReason = "10th marks not eligible for virtual interview"
-            return
+            print(tenth_marks)
+            
+
+    print(iti_trade)
+    print(parents_income)
+    print(parent_professions)
+    print(tenth_marks)
 
     # Store the score in the database if needed
     mongo.db.students.update_one(
-        {'_id': ObjectId(current_user_id), 'interviews.id': ObjectId(interviewId)},
-        {'$set': {'interviews.$.score': total_score, 'tasks': {'Submit EQ test': True}, 'rejectionReason': rejectionReason}}  # Update the interview score
+        {'_id': ObjectId(current_user_id), 'interviews.id': interviewId},
+        {'$set': {'interviews.$.score': total_score, 'tasks': {'Starting Virtual Interview': True,'Completing the Profile': True,'Starting the EQ test': True,'Submit EQ test': True}, 'rejectionReason': rejectionReason}}  # Update the interview score
     )
 
     return jsonify({"total_score": total_score}), 200
@@ -430,6 +445,7 @@ def submit_interview(interviewId):
 @jwt_required()
 def rate_students():
     
+
     current_user_id = get_jwt_identity()
     
     db = mongo[DB_NAME]

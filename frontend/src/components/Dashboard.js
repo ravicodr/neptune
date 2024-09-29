@@ -58,9 +58,8 @@ const StudentDashboard = () => {
           email: data?.personalInfo?.emailId || "Email not provided",
           applicationStatus: "Under Review", // Assuming this will come from your API
           personalInfo: {
-            number:
-              data?.personalInfo?.number[0] ||
-              "Phone number not provided",
+            mobileNumber:
+              data?.personalInfo?.mobileNumber || "Phone number not provided",
             address: "Address not provided", // Static value; can be enhanced
           },
           education: {
@@ -139,7 +138,7 @@ const StudentDashboard = () => {
     const filledFields = [
       data?.personalInfo.name,
       data?.personalInfo.email,
-      data?.personalInfo.phone,
+      data?.personalInfo.mobileNumber,
       data?.education.graduationDegree,
       data?.education.tenthMarks,
       data?.parentInfo.income,
@@ -224,19 +223,10 @@ const StudentDashboard = () => {
                 </ListItemIcon>
                 <ListItemText
                   primary="Phone"
-                  secondary={studentData.personalInfo.phone}
+                  secondary={studentData.personalInfo.mobileNumber}
                 />
               </ListItem>
               <Divider component="li" />
-              <ListItem>
-                <ListItemIcon>
-                  <Home />
-                </ListItemIcon>
-                <ListItemText
-                  primary="Address"
-                  secondary={studentData.personalInfo.address}
-                />
-              </ListItem>
             </List>
           </Paper>
         </Grid>
