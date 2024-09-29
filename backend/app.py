@@ -134,7 +134,8 @@ def profile():
         student = mongo.db.students.find_one({"_id": ObjectId(current_user_id)})
         if student:
             print(student)
-            return dumps({"profile": student.get('profile'),"tasks": student.get('tasks')}), 200
+            return dumps({"profile": student.get('profile'),"tasks": student.get('tasks'),"interviews":student.get('interviews')}), 200
+            #return dumps({"profile": student.get('profile'),"tasks": student.get('tasks')}), 200
         return jsonify({"message": "User not found"}), 404
     
     elif request.method == 'PUT':
@@ -148,7 +149,7 @@ def profile():
         
         result = mongo.db.students.update_one(
             {"_id": ObjectId(current_user_id)},
-            {"$set": {"profile": profile_data,"tasks":{"Completing the Profile":True,"Starting the EQ test":False,"Submit EQ test":False,"Uploading CV":True}}},
+            {"$set": {"profile": profile_data,"tasks":{"Completing the Profile":True,"Starting the EQ test":False,"Submit EQ test":False,"Uploading CV":True,}}},
         )
         
         if result.modified_count:
@@ -403,8 +404,8 @@ def submit_interview(interviewId):
             
 
         # 3. Parents' profession condition
-        parent_professions = [student.get("profile", {}).get("familyInfo", {}).get("fatherProfession"), 
-                            student.get("profile", {}).get("familyInfo", {}).get("motherProfession")]
+        parent_professions = [student.get("profile", {}).get("familyInfo", {}).get("fathersProfession"), 
+                            student.get("profile", {}).get("familyInfo", {}).get("mothersProfession")]
         if any(prof in ["JUDGE", "IAS", "IPS"] for prof in parent_professions if prof):
             print("Candidate is not eligible due to parent's profession.")
             rejectionReason = "Profession not eligible for virtual interview"
@@ -431,13 +432,15 @@ def submit_interview(interviewId):
     print(parents_income)
     print(parent_professions)
     print(tenth_marks)
-
+    
+    
     # Store the score in the database if needed
     mongo.db.students.update_one(
-        {'_id': ObjectId(current_user_id), 'interviews.id': interviewId},
-        {'$set': {'interviews.$.score': total_score, 'tasks': {'Starting Virtual Interview': True,'Completing the Profile': True,'Starting the EQ test': True,'Submit EQ test': True}, 'rejectionReason': rejectionReason}}  # Update the interview score
+        {'_id': ObjectId(current_user_id)},
+        {'$set': {'interviews.score': total_score,'interviews.rejectionReason': rejectionReason, 'tasks': {'Starting Virtual Interview': True,'Completing the Profile': True,'Starting the EQ test': True,'Submit EQ test': True,'Uploading CV': True}}}  # Update the interview score
     )
-
+    
+     
     return jsonify({"total_score": total_score}), 200
 
 

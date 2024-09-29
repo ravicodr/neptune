@@ -35,7 +35,7 @@ const StudentDashboard = () => {
   const [studentData, setStudentData] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const { token } = useAuth();
+  const { token, tasks } = useAuth();
 
   useEffect(() => {
     const fetchStudentData = async () => {
@@ -49,14 +49,19 @@ const StudentDashboard = () => {
         console.log("Response:", response);
 
         let data = await response.data;
+        let otherInfo = response.data;
         console.log("Student data:", data);
+        console.log("Other info:", otherInfo);
+
         data = data?.profile;
 
         // Transforming data to match your component's structure
         setStudentData({
           name: data?.personalInfo?.name || "Name not provided",
           email: data?.personalInfo?.emailId || "Email not provided",
-          applicationStatus: "Under Review", // Assuming this will come from your API
+          applicationStatus: otherInfo?.interviews?.rejectionReason
+            ? otherInfo?.interviews?.rejectionReason
+            : tasks["Submit EQ test"] ? "Approved" : "Pending",
           personalInfo: {
             mobileNumber:
               data?.personalInfo?.mobileNumber || "Phone number not provided",
@@ -86,10 +91,7 @@ const StudentDashboard = () => {
               }
             })(),
           },
-          iqEqTest: {
-            completed: true, // Assuming this will come from your API
-            score: 75, // Assuming a static value or derive it from the API
-          },
+
           notifications: [
             response.data.tasks["Uploading CV"]
               ? "CV uploaded successfully"
@@ -104,7 +106,7 @@ const StudentDashboard = () => {
               ? "EQ test submitted successfully"
               : "EQ test not submitted",
           ],
-          interviewSubmitted: response.data.tasks["Start Interview"], // Add this line to track interview submission
+          interviewSubmitted: response.data.tasks["Submit EQ test"],
         });
       } catch (error) {
         console.error("Error fetching student data:", error);
@@ -134,17 +136,12 @@ const StudentDashboard = () => {
   };
 
   const calculateProfileCompletion = (data) => {
-    const totalFields = 9; // Updated based on the relevant fields
+    const totalFields = 4; // Updated based on the relevant fields
     const filledFields = [
       data?.personalInfo.name,
       data?.personalInfo.email,
       data?.personalInfo.mobileNumber,
       data?.education.graduationDegree,
-      data?.education.tenthMarks,
-      data?.parentInfo.income,
-      data?.parentInfo.occupation,
-      data?.iqEqTest.completed,
-      data?.notifications.length > 0, // At least one notification
     ].filter(Boolean).length;
 
     return (filledFields / totalFields) * 100;
