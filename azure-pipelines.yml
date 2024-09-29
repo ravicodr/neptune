@@ -1,5 +1,5 @@
 trigger:
-  - main
+  - azure-pipelines
 
 stages:
   - stage: Build
