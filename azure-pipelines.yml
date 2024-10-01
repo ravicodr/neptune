@@ -104,11 +104,10 @@ stages:
                       # sudo systemctl restart flask-app
                       
                       # Configure Nginx
-                      sudo ln -sf /etc/nginx/sites-available/myapp /etc/nginx/sites-enabled/
-                      sudo tee /etc/nginx/sites-available/myapp <<EOF
+                      #sudo ln -sf /etc/nginx/sites-available/myapp /etc/nginx/sites-enabled/
+                      sudo tee /etc/nginx/conf.d/neptune-plastics.conf <<EOF
                       server {
                           listen 80;
-                          listen [::]:80;
 
                           location / {
                               root /var/www/react-app;
@@ -123,7 +122,7 @@ stages:
                       } 
                       EOF
 
-                      sudo ln -s /etc/nginx/sites-available/myapp /etc/nginx/sites-enabled/
+                      #sudo ln -s /etc/nginx/sites-available/myapp /etc/nginx/sites-enabled/
                       sudo nginx -t
                       sudo systemctl restart nginx
                       (cd /var/www/flask-app && flask run --debug &)
