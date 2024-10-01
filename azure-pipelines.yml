@@ -99,6 +99,7 @@ stages:
                       export DB_NAME=$(DB_NAME)
                       export JWT_SECRET_KEY=$(JWT_SECRET_KEY)
                       export MONGODB_URI=$(MONGODB_URI)
+                      export UPLOAD_FOLDER=$(UPLOAD_FOLDER)
                       # sudo nano /etc/systemd/system/flask-app.service
                       
                       # sudo systemctl restart flask-app
