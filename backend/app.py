@@ -33,7 +33,7 @@ jwt = JWTManager(app)
 # Configuration
 API_KEY=os.environ["API_KEY"]
 # BASE_URL = os.environ["BASE_URL"]
-UPLOAD_FOLDER="/uploads/"
+UPLOAD_FOLDER=os.environ["UPLOAD_FOLDER"]
 ASSISTANT_ID_CV=os.environ['ASSISTANT_ID_CV_EVALUATOR']
 ASSISTANT_ID_EQ_Q=os.environ['ASSISTANT_EQ_Q_GENERATOR']
 MONGO_DB_URI=os.environ['MONGODB_URI']
