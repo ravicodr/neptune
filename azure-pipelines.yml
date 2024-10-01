@@ -65,6 +65,8 @@ stages:
                       sudo rm -r '/var/www/flask-app'
                       mkdir -p '/var/www/react-app'
                       mkdir -p '/var/www/flask-app'
+                      mkdir -p '/home/azureuser/uploads'
+                      sudo chmod -R 777 /home/azureuser/uploads
                       
                 - task: CopyFilesOverSSH@0
                   inputs:
