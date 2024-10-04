@@ -542,39 +542,79 @@ def admin_login():
 @app.route('/admin/dashboard', methods=['GET'])
 @jwt_required()
 def admin_dashboard():
-    current_admin = get_jwt_identity()
-    db = mongo[DB_NAME]
-    students = db['students']
-
-    allStudents= students.find({})
-    # print("Printing all",allStudents)
-    # for document in allStudents:
-    #     print(document)
+    # Calculate statistics
+    cvs_generated_count = mongo.db.students.count_documents({"tasks.Uploading CV": True})
     
-    # print(str(list(mongo.db.students.find({}))))
-
-    eligible_students = mongo.db.students.find({
-            "tasks.Uploading CV": True,
-            "tasks.Completing the Profile": True,
-            "tasks.Starting the EQ test": True,
-            "tasks.Submit EQ test": True,
-            "interviews.score": {"$gt": 70},
-            "interviews.rejectionReason": None               
-    },{
-        "profile": 1,
-        "interviews.score": 1,
-        "phone":1
+    cvs_selected_count = mongo.db.students.count_documents({
+        "tasks.Uploading CV": True,
+        "tasks.Completing the Profile": True,
+        "tasks.Starting the EQ test": True,
+        "tasks.Submit EQ test": True,
+        "interviews.score": {"$gt": 70},
+        "interviews.rejectionReason": None
+    })
+    interviews_selected_count = mongo.db.students.count_documents({
+        "tasks.Uploading CV": True,
+        "tasks.Completing the Profile": True,
+        "tasks.Starting the EQ test": True,
+        "tasks.Submit EQ test": True,
+        "interviews.score": {"$gt": 70},
+        "interviews.rejectionReason": None,
+        "interviews.approved": True
     })
 
-    # print(dumps(eligible_students))
-    print("Eligible Students", eligible_students)
-    studentsToSend = dumps(eligible_students)
-    print(studentsToSend)
+    eligible_students = mongo.db.students.find({
+        "tasks.Uploading CV": True,
+        "tasks.Completing the Profile": True,
+        "tasks.Starting the EQ test": True,
+        "tasks.Submit EQ test": True,
+        "interviews.score": {"$gt": 70},
+        "interviews.rejectionReason": None
+    }, {
+        "profile": 1,
+        "interviews.score": 1,
+        "interviews.approved": 1,
+        "interviews.comment": 1,
+        "phone": 1
+    })
+
+    students_to_send = json.loads(dumps(eligible_students))
     
-    return studentsToSend
+
+    response = {
+        "stats": {
+            "cvsGenerated": cvs_generated_count,
+            "cvsSelected": cvs_selected_count,
+            "interviewsSelected": interviews_selected_count,
+        },
+        "students": students_to_send
+    }
+    
+    return jsonify(response)
 
 # API to approve students and add fields
 @app.route('/admin/approve-student/<student_id>', methods=['POST'])
+@jwt_required()
+def approve_student(student_id):
+    data = request.get_json()
+    comment = data.get('comment', '')
+
+    print(f"Approving student: {student_id}, Comment: {comment}")  # Log the student_id and comment
+
+    result = mongo.db.students.update_one(
+        {"_id": ObjectId(student_id)},
+        {
+            "$set": {
+                "interviews.comment": comment,
+                "interviews.approved": True
+            }
+        }
+    )
+
+    if result.modified_count == 1:
+        return jsonify({"message": "Student approved successfully"}), 200
+    return jsonify({"message": "Failed to approve student"}), 400
+
 @jwt_required()
 def approve_student(student_id):
     db = mongo[DB_NAME]
@@ -583,10 +623,14 @@ def approve_student(student_id):
 
     result = db['students'].update_one(
         {"_id": ObjectId(student_id)},
-        {"$set": {
-            "interviews.comment": comment,
-            "interviews.approved": True
-        }}
+        {
+            "$push": {
+                "interviews": {
+                    "comment": comment,
+                    "approved": True
+                }
+            }
+        }
     )
 
     if result.modified_count == 1:
