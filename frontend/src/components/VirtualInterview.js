@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
 import {
   Container,
   Paper,
@@ -19,7 +18,6 @@ import {
   DialogContentText,
   DialogTitle,
   CircularProgress,
-  TextField,
 } from "@mui/material";
 import { Timer, NavigateNext, Check } from "@mui/icons-material";
 import { useAuth } from "../contexts/AuthContext";
@@ -39,8 +37,9 @@ const VirtualInterview = () => {
   const navigate = useNavigate();
   const { token } = useAuth();
 
-  // Function to start the interview and get the interview ID
+  // Start the interview and get the interview ID
   const startInterview = async () => {
+    setLoading(true);
     try {
       const response = await api.post(
         "/start-virtual-interview",
@@ -55,29 +54,33 @@ const VirtualInterview = () => {
       setInterviewId(id);
     } catch (error) {
       console.error("Error starting interview:", error);
+      alert("Failed to start interview. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Function to fetch questions based on the interview ID
+  // Fetch questions based on the interview ID
   const fetchQuestions = async (id) => {
+    setLoading(true);
     try {
       const response = await api.get(`/interview-questions/${id}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-      console.log({ response: response });
-      console.log({ "response.data.questions": response.data.questions });
-
       setQuestions(response.data.questions);
-      setLoading(false);
     } catch (error) {
       console.error("Error fetching questions:", error);
+      alert("Failed to fetch questions. Please refresh and try again.");
+    } finally {
       setLoading(false);
     }
   };
 
+  // Submit the interview answers
   const handleSubmitInterview = async () => {
+    setLoading(true);
     try {
       const response = await api.post(
         `/submit-interview/${interviewId}`,
@@ -94,6 +97,9 @@ const VirtualInterview = () => {
       navigate("/dashboard");
     } catch (error) {
       console.error("Error submitting interview:", error);
+      alert("Failed to submit interview. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -112,32 +118,34 @@ const VirtualInterview = () => {
   }, [interviewId]);
 
   useEffect(() => {
-    if (!loading) {
-      const timer = setInterval(() => {
-        setTimeLeft((prevTime) => {
-          if (prevTime === 0) {
-            handleNextQuestion();
-            return QUESTION_TIME;
-          }
-          return prevTime - 1;
-        });
+    let timer;
+    if (timeLeft > 0) {
+      timer = setInterval(() => {
+        setTimeLeft((prevTime) => prevTime - 1);
       }, 1000);
-
-      return () => clearInterval(timer);
+    } else if (currentQuestionIndex < questions.length - 1) {
+      handleNextQuestion();
     }
-  }, [currentQuestionIndex, loading]);
+
+    return () => clearInterval(timer);
+  }, [timeLeft, currentQuestionIndex, questions.length]);
 
   const handleAnswerChange = (event) => {
     setSelectedAnswer(event.target.value);
   };
 
   const handleNextQuestion = () => {
-    setAnswers([...answers, selectedAnswer]);
+    if (selectedAnswer === "") {
+      alert("Please select an answer before proceeding.");
+      return;
+    }
+
+    setAnswers((prevAnswers) => [...prevAnswers, selectedAnswer]);
+    setSelectedAnswer("");
 
     if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setSelectedAnswer(""); // Reset selected answer
-      setTimeLeft(QUESTION_TIME);
+      setCurrentQuestionIndex((prevIndex) => prevIndex + 1);
+      setTimeLeft(QUESTION_TIME); // Reset the timer for the next question
     } else {
       setIsInterviewComplete(true);
     }
@@ -159,7 +167,7 @@ const VirtualInterview = () => {
         <Typography variant="h4" gutterBottom align="center">
           Virtual Interview
         </Typography>
-        {!isInterviewComplete ? (
+        {!isInterviewComplete && questions.length > 0 ? (
           <>
             <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
               <Timer color="primary" sx={{ mr: 1 }} />
@@ -211,7 +219,7 @@ const VirtualInterview = () => {
         ) : (
           <Dialog
             open={isInterviewComplete}
-            onClose={handleSubmitInterview}
+            onClose={() => setIsInterviewComplete(false)}
             aria-labelledby="alert-dialog-title"
             aria-describedby="alert-dialog-description"
           >

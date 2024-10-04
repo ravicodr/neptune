@@ -14,6 +14,7 @@ import {
   ListItemIcon,
   Divider,
   LinearProgress,
+  Avatar,
 } from "@mui/material";
 import {
   Person,
@@ -22,11 +23,11 @@ import {
   AttachMoney,
   Psychology,
   Phone,
-  Home,
   PlayArrow,
   CheckCircle,
   Pending,
   Cancel,
+  Email,
 } from "@mui/icons-material";
 import { useAuth } from "../contexts/AuthContext";
 import api from "../api";
@@ -35,7 +36,7 @@ const StudentDashboard = () => {
   const [studentData, setStudentData] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const { token, tasks } = useAuth();
+  const { token,user,tasks,setTasks,setUser } = useAuth();
 
   useEffect(() => {
     const fetchStudentData = async () => {
@@ -45,41 +46,37 @@ const StudentDashboard = () => {
             Authorization: `Bearer ${token}`,
           },
         });
+        setUser(response.data.profile)
+        setTasks(response.data.tasks);
+        // const data = response.user?.user;
+        // const otherInfo = response.data;
 
-        console.log("Response:", response);
-
-        let data = await response.data;
-        let otherInfo = response.data;
-        console.log("Student data:", data);
-        console.log("Other info:", otherInfo);
-
-        data = data?.profile;
-
-        // Transforming data to match your component's structure
         setStudentData({
-          name: data?.personalInfo?.name || "Name not provided",
-          email: data?.personalInfo?.emailId || "Email not provided",
-          applicationStatus: otherInfo?.interviews?.rejectionReason
-            ? otherInfo?.interviews?.rejectionReason
-            : tasks["Submit EQ test"] ? "Approved" : "Pending",
+          name: user?.personalInfo?.name || "Name not provided",
+          email: user?.personalInfo?.emailId || "Email not provided",
+          applicationStatus: user?.interviews?.rejectionReason
+            ? user?.interviews?.rejectionReason
+            : tasks["Submit EQ test"]
+            ? "Approved"
+            : "Pending",
           personalInfo: {
             mobileNumber:
-              data?.personalInfo?.mobileNumber || "Phone number not provided",
-            address: "Address not provided", // Static value; can be enhanced
+              user?.personalInfo?.mobileNumber || "Phone number not provided",
+            emailId: user?.personalInfo?.emailId || "Email Id not provided",
           },
           education: {
             graduationDegree:
-              data?.education?.graduationDegree || "Degree not provided",
+              user?.education?.graduationDegree || "Degree not provided",
             tenthMarks:
-              data?.education?.tenthBoardMarks?.percentage ||
+              user?.education?.tenthBoardMarks?.percentage ||
               "Marks not provided",
           },
           parentInfo: {
             income:
-              data?.familyInfo?.parentsAnnualIncome || "Income not provided",
+              user?.familyInfo?.parentsAnnualIncome || "Income not provided",
             occupation: (() => {
-              const fatherProfession = data?.familyInfo?.fathersProfession;
-              const motherProfession = data?.familyInfo?.mothersProfession;
+              const fatherProfession = user?.familyInfo?.fathersProfession;
+              const motherProfession = user?.familyInfo?.mothersProfession;
               if (fatherProfession && motherProfession) {
                 return `${fatherProfession} & ${motherProfession}`;
               } else if (fatherProfession) {
@@ -91,22 +88,21 @@ const StudentDashboard = () => {
               }
             })(),
           },
-
           notifications: [
-            response.data.tasks["Uploading CV"]
+            tasks["Uploading CV"]
               ? "CV uploaded successfully"
               : "CV not uploaded",
-            response.data.tasks["Completing the Profile"]
-              ? "Resume uploaded successfully"
-              : "Resume not uploaded",
-            response.data.tasks["Starting the EQ test"]
+            tasks["Completing the Profile"]
+              ? "Profile completed successfully"
+              : "Profile not completed",
+            tasks["Starting the EQ test"]
               ? "EQ test started successfully"
               : "EQ test not started",
-            response.data.tasks["Submit EQ test"]
+            tasks["Submit EQ test"]
               ? "EQ test submitted successfully"
               : "EQ test not submitted",
           ],
-          interviewSubmitted: response.data.tasks["Submit EQ test"],
+          interviewSubmitted: tasks["Submit EQ test"],
         });
       } catch (error) {
         console.error("Error fetching student data:", error);
@@ -116,7 +112,7 @@ const StudentDashboard = () => {
     };
 
     fetchStudentData();
-  }, [token]);
+  }, [token, tasks]);
 
   const handleStartInterview = () => {
     navigate("/virtual-interview");
@@ -136,12 +132,11 @@ const StudentDashboard = () => {
   };
 
   const calculateProfileCompletion = (data) => {
-    const totalFields = 4; // Updated based on the relevant fields
+    const totalFields = 2;
     const filledFields = [
-      data?.personalInfo.name,
-      data?.personalInfo.email,
-      data?.personalInfo.mobileNumber,
-      data?.education.graduationDegree,
+      user?.personalInfo.name,
+      user?.personalInfo.emailId,
+      user?.personalInfo.mobileNumber,
     ].filter(Boolean).length;
 
     return (filledFields / totalFields) * 100;
@@ -158,166 +153,153 @@ const StudentDashboard = () => {
   const profileCompletion = calculateProfileCompletion(studentData);
 
   return (
-    <Container maxWidth="lg">
-      <Box
-        sx={{
-          mt: 4,
-          mb: 4,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Typography variant="h4" component="div" sx={{ mr: 2 }}>
-          Application Status:
-        </Typography>
-        <Chip
-          icon={getStatusIcon(studentData.applicationStatus)}
-          label={studentData.applicationStatus}
-          color="primary"
-          size="large"
-        />
-      </Box>
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={4}>
-          <Paper elevation={3} sx={{ p: 3, textAlign: "center" }}>
-            <Typography variant="h5">{studentData.name}</Typography>
-            <Typography color="textSecondary">{studentData.email}</Typography>
-          </Paper>
-        </Grid>
-        <Grid item xs={12} md={8}>
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Profile Completion
-            </Typography>
-            <LinearProgress
-              variant="determinate"
-              value={profileCompletion}
-              sx={{ height: 10, borderRadius: 5, mb: 1 }}
-            />
-            <Typography variant="body2" color="textSecondary">
-              {`${Math.round(profileCompletion)}% Complete`}
-            </Typography>
-            <Button
-              variant="contained"
-              color="primary"
-              sx={{ mt: 2 }}
-              startIcon={<Person />}
-            >
-              Complete Profile
-            </Button>
-          </Paper>
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Personal Information
-            </Typography>
-            <List>
-              <ListItem>
-                <ListItemIcon>
-                  <Phone />
-                </ListItemIcon>
-                <ListItemText
-                  primary="Phone"
-                  secondary={studentData.personalInfo.mobileNumber}
-                />
-              </ListItem>
-              <Divider component="li" />
-            </List>
-          </Paper>
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Education
-            </Typography>
-            <List>
-              <ListItem>
-                <ListItemIcon>
-                  <School />
-                </ListItemIcon>
-                <ListItemText
-                  primary="Graduation Degree"
-                  secondary={studentData.education.graduationDegree}
-                />
-              </ListItem>
-              <Divider component="li" />
-              <ListItem>
-                <ListItemIcon>
-                  <Psychology />
-                </ListItemIcon>
-                <ListItemText
-                  primary="10th Marks"
-                  secondary={`${studentData.education.tenthMarks}%`}
-                />
-              </ListItem>
-            </List>
-          </Paper>
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Parent Information
-            </Typography>
-            <List>
-              <ListItem>
-                <ListItemIcon>
-                  <AttachMoney />
-                </ListItemIcon>
-                <ListItemText
-                  primary="Annual Income"
-                  secondary={`₹${parseInt(
-                    studentData.parentInfo.income
-                  ).toLocaleString()}`}
-                />
-              </ListItem>
-              <Divider component="li" />
-              <ListItem>
-                <ListItemIcon>
-                  <Work />
-                </ListItemIcon>
-                <ListItemText
-                  primary="Occupation"
-                  secondary={studentData.parentInfo.occupation}
-                />
-              </ListItem>
-            </List>
-          </Paper>
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Interview Status
-            </Typography>
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Paper elevation={3} sx={{ p: 4 }}>
+        <Box sx={{ display: "flex", justifyContent: "center", mb: 4 }}>
+          <Typography variant="h4" component="div" sx={{ mr: 2 }}>
+            Application Status:
+          </Typography>
+          <Chip
+            icon={getStatusIcon(studentData.applicationStatus)}
+            label={studentData.applicationStatus}
+            color="primary"
+            size="large"
+          />
+        </Box>
 
-            <Button
-              variant="contained"
-              color="primary"
-              sx={{ mt: 2 }}
-              startIcon={<PlayArrow />}
-              onClick={handleStartInterview}
-              disabled={studentData.interviewSubmitted} // Disable button if already submitted
-            >
-              Start Interview
-            </Button>
-          </Paper>
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Notifications
-            </Typography>
-            <List>
-              {studentData.notifications.map((notification, index) => (
-                <ListItem key={index}>
-                  <ListItemText primary={notification} />
+        <Grid container spacing={4}>
+          <Grid item xs={12} md={6}>
+            <Paper elevation={3} sx={{ p: 3, textAlign: "center" }}>
+              <Avatar sx={{ width: 80, height: 80, mb: 2, mx: "auto" }}>
+                <Person fontSize="large" />
+              </Avatar>
+              <Typography variant="h5">{studentData.name}</Typography>
+              <Typography color="textSecondary">{studentData.email}</Typography>
+            </Paper>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <Paper elevation={3} sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Personal Information
+              </Typography>
+              <List>
+                <ListItem>
+                  <ListItemIcon>
+                    <Phone />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Phone"
+                    secondary={studentData.personalInfo.mobileNumber}
+                  />
                 </ListItem>
-              ))}
-            </List>
-          </Paper>
+                <ListItem>
+                  <ListItemIcon>
+                    <Email />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Email"
+                    secondary={studentData.personalInfo.emailId}
+                  />
+                </ListItem>
+              </List>
+            </Paper>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <Paper elevation={3} sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Education
+              </Typography>
+              <List>
+                <ListItem>
+                  <ListItemIcon>
+                    <School />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Graduation Degree"
+                    secondary={studentData.education.graduationDegree}
+                  />
+                </ListItem>
+                <Divider component="li" />
+                <ListItem>
+                  <ListItemIcon>
+                    <Psychology />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="10th Marks"
+                    secondary={`${studentData.education.tenthMarks}%`}
+                  />
+                </ListItem>
+              </List>
+            </Paper>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <Paper elevation={3} sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Parent Information
+              </Typography>
+              <List>
+                <ListItem>
+                  <ListItemIcon>
+                    <AttachMoney />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Annual Income"
+                    secondary={`₹${parseInt(
+                      studentData.parentInfo.income
+                    ).toLocaleString()}`}
+                  />
+                </ListItem>
+                <Divider component="li" />
+                <ListItem>
+                  <ListItemIcon>
+                    <Work />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Occupation"
+                    secondary={studentData.parentInfo.occupation}
+                  />
+                </ListItem>
+              </List>
+            </Paper>
+          </Grid>
+
+          <Grid item xs={12}>
+            <Paper elevation={3} sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Interview Status
+              </Typography>
+              <Button
+                variant="contained"
+                color="primary"
+                sx={{ mt: 2 }}
+                startIcon={<PlayArrow />}
+                onClick={handleStartInterview}
+                disabled={studentData.interviewSubmitted}
+              >
+                Start Interview
+              </Button>
+            </Paper>
+          </Grid>
+
+          <Grid item xs={12}>
+            <Paper elevation={3} sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Notifications
+              </Typography>
+              <List>
+                {studentData.notifications.map((notification, index) => (
+                  <ListItem key={index}>
+                    <ListItemText primary={notification} />
+                  </ListItem>
+                ))}
+              </List>
+            </Paper>
+          </Grid>
         </Grid>
-      </Grid>
+      </Paper>
     </Container>
   );
 };

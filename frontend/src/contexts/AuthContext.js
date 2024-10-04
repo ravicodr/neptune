@@ -67,6 +67,7 @@ export const AuthProvider = ({ children }) => {
         error,
         token,
         tasks,
+        setTasks,
       }}
     >
       {loading ? <div>Loading...</div> : children}

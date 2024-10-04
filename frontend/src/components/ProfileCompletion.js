@@ -9,9 +9,11 @@ import {
   Button,
   LinearProgress,
   Container,
+  CircularProgress,
 } from "@mui/material";
 import { useAuth } from "../contexts/AuthContext";
 import api from "../api";
+import logo from "../assets/logo.jpg"; // Import the logo
 
 const initialProfileData = {
   additionalInfo: {
@@ -55,6 +57,7 @@ const ProfileCompletion = () => {
   const location = useLocation();
   const [profileData, setProfileData] = useState(initialProfileData);
   const [completionPercentage, setCompletionPercentage] = useState(0);
+  const [loading, setLoading] = useState(false); // Loading state
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -138,16 +141,14 @@ const ProfileCompletion = () => {
       return;
     }
 
+    setLoading(true); // Start loading
+
     try {
-      const response = await api.put(
-        "/profile",
-        profileData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await api.put("/profile", profileData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       if (response.status === 200) {
         console.log(response.data.message);
@@ -157,21 +158,33 @@ const ProfileCompletion = () => {
       }
     } catch (error) {
       console.error("Error submitting profile data:", error);
+    } finally {
+      setLoading(false); // Stop loading
     }
   };
 
   return (
     <Container maxWidth="md">
-      <Box sx={{ mt: 4, mb: 4 }}>
-        <Typography variant="h4" gutterBottom align="center">
+      <Box sx={{ mt: 4, mb: 4, textAlign: "center" }}>
+        <img
+          src={logo}
+          alt="Logo"
+          style={{ width: "100px", height: "auto", marginBottom: 20 }} // Logo styling
+        />
+        <Typography variant="h4" gutterBottom>
           Complete Your Profile
         </Typography>
         <LinearProgress
           variant="determinate"
           value={completionPercentage}
-          sx={{ mb: 2, height: 10, borderRadius: 5 }}
+          sx={{
+            mb: 2,
+            height: 10,
+            borderRadius: 5,
+            backgroundColor: "#e0e0e0",
+          }} // Light grey background for progress bar
         />
-        <Typography variant="body2" gutterBottom align="center">
+        <Typography variant="body2" gutterBottom>
           {`Profile Completion: ${Math.round(completionPercentage)}%`}
         </Typography>
       </Box>
@@ -179,7 +192,7 @@ const ProfileCompletion = () => {
       <Grid container spacing={3}>
         {/* Personal Information Section */}
         <Grid item xs={12}>
-          <Paper elevation={3} sx={{ p: 3 }}>
+          <Paper elevation={3} sx={{ p: 3, backgroundColor: "#ffffff" }}>
             <Typography variant="h6" gutterBottom>
               Personal Information
             </Typography>
@@ -194,6 +207,11 @@ const ProfileCompletion = () => {
                     onChange={(e) =>
                       handleChange("personalInfo", key, e.target.value)
                     }
+                    sx={{
+                      "& .MuiInputBase-root": {
+                        backgroundColor: "#f9f9f9", // Light background for text fields
+                      },
+                    }}
                   />
                 </Grid>
               ))}
@@ -203,7 +221,7 @@ const ProfileCompletion = () => {
 
         {/* Education Section */}
         <Grid item xs={12}>
-          <Paper elevation={3} sx={{ p: 3 }}>
+          <Paper elevation={3} sx={{ p: 3, backgroundColor: "#ffffff" }}>
             <Typography variant="h6" gutterBottom>
               Education
             </Typography>
@@ -221,12 +239,18 @@ const ProfileCompletion = () => {
                       e.target.value
                     )
                   }
+                  sx={{
+                    "& .MuiInputBase-root": {
+                      backgroundColor: "#f9f9f9", // Light background for text fields
+                    },
+                  }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
                   required
                   fullWidth
+                  type="number"
                   label="10th Marks"
                   value={profileData.education.tenthBoardMarks.marks}
                   onChange={(e) =>
@@ -237,12 +261,18 @@ const ProfileCompletion = () => {
                       e.target.value
                     )
                   }
+                  sx={{
+                    "& .MuiInputBase-root": {
+                      backgroundColor: "#f9f9f9", // Light background for text fields
+                    },
+                  }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField
                   required
                   fullWidth
+                  type="number"
                   label="10th Percentage"
                   value={profileData.education.tenthBoardMarks.percentage}
                   onChange={(e) =>
@@ -253,6 +283,11 @@ const ProfileCompletion = () => {
                       e.target.value
                     )
                   }
+                  sx={{
+                    "& .MuiInputBase-root": {
+                      backgroundColor: "#f9f9f9", // Light background for text fields
+                    },
+                  }}
                 />
               </Grid>
             </Grid>
@@ -261,7 +296,7 @@ const ProfileCompletion = () => {
 
         {/* Family Information Section */}
         <Grid item xs={12}>
-          <Paper elevation={3} sx={{ p: 3 }}>
+          <Paper elevation={3} sx={{ p: 3, backgroundColor: "#ffffff" }}>
             <Typography variant="h6" gutterBottom>
               Family Information
             </Typography>
@@ -276,6 +311,12 @@ const ProfileCompletion = () => {
                     onChange={(e) =>
                       handleChange("familyInfo", key, e.target.value)
                     }
+                    type={key === "parentsAnnualIncome" ? "number" : "text"}
+                    sx={{
+                      "& .MuiInputBase-root": {
+                        backgroundColor: "#f9f9f9", // Light background for text fields
+                      },
+                    }}
                   />
                 </Grid>
               ))}
@@ -285,24 +326,29 @@ const ProfileCompletion = () => {
 
         {/* Future Goals Section */}
         <Grid item xs={12}>
-          <Paper elevation={3} sx={{ p: 3 }}>
+          <Paper elevation={3} sx={{ p: 3, backgroundColor: "#ffffff" }}>
             <Typography variant="h6" gutterBottom>
               Future Goals
             </Typography>
             <TextField
               fullWidth
-              label="5-Year Vision"
+              label="5 Year Vision"
               value={profileData.futureGoals.fiveYearVision}
               onChange={(e) =>
                 handleChange("futureGoals", "fiveYearVision", e.target.value)
               }
+              sx={{
+                "& .MuiInputBase-root": {
+                  backgroundColor: "#f9f9f9", // Light background for text fields
+                },
+              }}
             />
           </Paper>
         </Grid>
 
         {/* Interests Section */}
         <Grid item xs={12}>
-          <Paper elevation={3} sx={{ p: 3 }}>
+          <Paper elevation={3} sx={{ p: 3, backgroundColor: "#ffffff" }}>
             <Typography variant="h6" gutterBottom>
               Interests
             </Typography>
@@ -313,13 +359,18 @@ const ProfileCompletion = () => {
               onChange={(e) =>
                 handleChange("interests", "hobbies", e.target.value.split(", "))
               }
+              sx={{
+                "& .MuiInputBase-root": {
+                  backgroundColor: "#f9f9f9", // Light background for text fields
+                },
+              }}
             />
           </Paper>
         </Grid>
 
         {/* Professional Information Section */}
         <Grid item xs={12}>
-          <Paper elevation={3} sx={{ p: 3 }}>
+          <Paper elevation={3} sx={{ p: 3, backgroundColor: "#ffffff" }}>
             <Typography variant="h6" gutterBottom>
               Professional Information
             </Typography>
@@ -334,13 +385,18 @@ const ProfileCompletion = () => {
                   e.target.value
                 )
               }
+              sx={{
+                "& .MuiInputBase-root": {
+                  backgroundColor: "#f9f9f9", // Light background for text fields
+                },
+              }}
             />
           </Paper>
         </Grid>
 
         {/* Situational Judgment Section */}
         <Grid item xs={12}>
-          <Paper elevation={3} sx={{ p: 3 }}>
+          <Paper elevation={3} sx={{ p: 3, backgroundColor: "#ffffff" }}>
             <Typography variant="h6" gutterBottom>
               Situational Judgment
             </Typography>
@@ -355,13 +411,18 @@ const ProfileCompletion = () => {
                   e.target.value
                 )
               }
+              sx={{
+                "& .MuiInputBase-root": {
+                  backgroundColor: "#f9f9f9", // Light background for text fields
+                },
+              }}
             />
           </Paper>
         </Grid>
 
         {/* Additional Information Section */}
         <Grid item xs={12}>
-          <Paper elevation={3} sx={{ p: 3 }}>
+          <Paper elevation={3} sx={{ p: 3, backgroundColor: "#ffffff" }}>
             <Typography variant="h6" gutterBottom>
               Additional Information
             </Typography>
@@ -376,6 +437,11 @@ const ProfileCompletion = () => {
                   e.target.value
                 )
               }
+              sx={{
+                "& .MuiInputBase-root": {
+                  backgroundColor: "#f9f9f9", // Light background for text fields
+                },
+              }}
             />
           </Paper>
         </Grid>
@@ -384,11 +450,21 @@ const ProfileCompletion = () => {
         <Grid item xs={12} sx={{ textAlign: "center", mt: 3 }}>
           <Button
             variant="contained"
-            color="primary"
+            sx={{
+              backgroundColor: "#FFA500", // Orange
+              color: "white",
+              "&:hover": {
+                backgroundColor: "#FF8C00", // Darker orange
+              },
+            }}
             onClick={handleSubmit}
-            disabled={completionPercentage < 100}
+            disabled={completionPercentage < 100 || loading} // Disable button while loading
           >
-            Submit
+            {loading ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              "Submit"
+            )}
           </Button>
         </Grid>
       </Grid>
