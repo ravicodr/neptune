@@ -22,9 +22,10 @@ const theme = createTheme({
 });
 console.log("Current environment:", process.env.REACT_APP_NODE_ENV);
 console.log("Current Dev environment", process.env.REACT_APP_API_BASE_URL_DEV);
-console.log("Current Prod environment:", process.env.REACT_APP_API_BASE_URL_PROD);
-
-
+console.log(
+  "Current Prod environment:",
+  process.env.REACT_APP_API_BASE_URL_PROD
+);
 
 function App() {
   const { tasks, token } = useAuth();
@@ -72,18 +73,9 @@ function App() {
             path="/virtual-interview"
             element={token ? <VirtualInterview /> : <Navigate to="/login" />}
           />
-          <Route path="/adminLogin" element={<AdminLogin />} />
+          <Route path="/admin-login" element={<AdminLogin />} />
 
-          <Route
-            path="/adminDashboard"
-            element={
-              localStorage.getItem("adminAuthenticated") === "true" ? (
-                <AdminDashboard />
-              ) : (
-                <Navigate to="/adminLogin" />
-              )
-            }
-          />
+          <Route path="/admin-dashboard" element={<AdminDashboard />} />
         </Routes>
       </Router>
     </ThemeProvider>

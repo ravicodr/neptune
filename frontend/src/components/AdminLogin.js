@@ -8,19 +8,24 @@ import {
   Container,
   Paper
 } from '@mui/material';
+import api from "../api"
 
 const AdminLogin = () => {
-  const [userId, setUserId] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
 
-  const handleAdminLogin = (e) => {
+  const handleAdminLogin = async(e) => {
     e.preventDefault();
     // Here you would typically validate the admin credentials
     // For this example, we'll use a simple check
-    if (userId === 'admin' && password === 'password') {
+    const response = await api.post('/admin/login', { email, password });
+    console.log("Login result:", response);
+    
+    if (response) {
       localStorage.setItem('adminAuthenticated', 'true');
-      navigate('/adminDashboard');
+      localStorage.setItem("adminToken", response.data.access_token);
+      navigate('/admin-dashboard');
     } else {
       alert('Invalid credentials');
     }
@@ -37,12 +42,12 @@ const AdminLogin = () => {
             margin="normal"
             required
             fullWidth
-            id="userId"
-            label="User ID"
-            name="userId"
+            id="email"
+            label="Email ID"
+            name="email"
             autoFocus
-            value={userId}
-            onChange={(e) => setUserId(e.target.value)}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
           />
           <TextField
             margin="normal"

@@ -13,6 +13,7 @@ import time
 import json
 from bson import ObjectId
 from bson.json_util import dumps
+
 # from assistant import *
 
 app = Flask(__name__)
@@ -422,7 +423,7 @@ def submit_interview(interviewId):
         # tenth_marks = next((float(edu["tenthBoardMarks"]["percentage"]) student.get("education"))))                 
         # iti_trade = next((edu["graduationDegree"] for edu in student.get("education", []) if "ITI" in edu.get("degree", "").upper()), None)
         tenth_marks=int(student["profile"]["education"]["tenthBoardMarks"]["percentage"])
-        if tenth_marks is not None and tenth_marks > 80:
+        if tenth_marks is not None and tenth_marks > 75:
             #print(f"Candidate is not eligible due to high 10th marks: {tenth_marks}%")
             rejectionReason = "10th marks not eligible for virtual interview"
             #print(tenth_marks)
@@ -500,3 +501,94 @@ def rate_students():
 @app.route('/logout')
 def logout():
     return 'Logout'
+
+@app.route('/admin/signup', methods=['POST'])
+def admin_signup():
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+    
+    db = mongo[DB_NAME]
+    admins = db['admins']
+    
+    if admins.find_one({"email": email}):
+        return jsonify({"message": "Email already registered"}), 400
+    
+    hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+    admins.insert_one({
+        "email": email,
+        "password": hashed_password
+    })
+    
+    return jsonify({"message": "Admin created successfully"}), 201
+
+@app.route('/admin/login', methods=['POST'])
+def admin_login():
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+    
+    db = mongo[DB_NAME]
+    admins = db['admins']
+    
+    admin = admins.find_one({"email": email})
+    
+    if not admin or not bcrypt.check_password_hash(admin['password'], password):
+        return jsonify({"message": "Invalid email or password"}), 401
+    
+    access_token = create_access_token(identity=email)
+    return jsonify(access_token=access_token), 200
+
+@app.route('/admin/dashboard', methods=['GET'])
+@jwt_required()
+def admin_dashboard():
+    current_admin = get_jwt_identity()
+    db = mongo[DB_NAME]
+    students = db['students']
+
+    allStudents= students.find({})
+    # print("Printing all",allStudents)
+    # for document in allStudents:
+    #     print(document)
+    
+    # print(str(list(mongo.db.students.find({}))))
+
+    eligible_students = mongo.db.students.find({
+            "tasks.Uploading CV": True,
+            "tasks.Completing the Profile": True,
+            "tasks.Starting the EQ test": True,
+            "tasks.Submit EQ test": True,
+            "interviews.score": {"$gt": 70},
+            "interviews.rejectionReason": None               
+    },{
+        "profile": 1,
+        "interviews.score": 1,
+        "phone":1
+    })
+
+    # print(dumps(eligible_students))
+    print("Eligible Students", eligible_students)
+    studentsToSend = dumps(eligible_students)
+    print(studentsToSend)
+    
+    return studentsToSend
+
+# API to approve students and add fields
+@app.route('/admin/approve-student/<student_id>', methods=['POST'])
+@jwt_required()
+def approve_student(student_id):
+    db = mongo[DB_NAME]
+    data = request.get_json()
+    comment = data.get('comment', '')
+
+    result = db['students'].update_one(
+        {"_id": ObjectId(student_id)},
+        {"$set": {
+            "interviews.comment": comment,
+            "interviews.approved": True
+        }}
+    )
+
+    if result.modified_count == 1:
+        return jsonify({"message": "Student approved successfully"}), 200
+    return jsonify({"message": "Failed to approve student"}), 400
