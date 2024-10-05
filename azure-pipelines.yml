@@ -60,6 +60,7 @@ stages:
                     sshEndpoint: 'Production-vm'
                     runOptions: 'commands'
                     commands: |
+                      mkdir /var/www
                       sudo chmod -R 777 /var/www
                       sudo rm -r '/var/www/react-app'
                       sudo rm -r '/var/www/flask-app'
