@@ -57,7 +57,7 @@ stages:
 
                 - task: SSH@0
                   inputs:
-                    sshEndpoint: 'Production-vm'
+                    sshEndpoint: 'VM-connection'
                     runOptions: 'commands'
                     commands: |
                       mkdir -p /var/www
@@ -71,21 +71,21 @@ stages:
                       
                 - task: CopyFilesOverSSH@0
                   inputs:
-                    sshEndpoint: 'Production-vm'
+                    sshEndpoint: 'VM-connection'
                     sourceFolder: '$(Pipeline.Workspace)/react-build/'
                     contents: '**'
                     targetFolder: '/var/www/react-app/'
                 
                 - task: CopyFilesOverSSH@0
                   inputs:
-                    sshEndpoint: 'Production-vm'
+                    sshEndpoint: 'VM-connection'
                     sourceFolder: '$(Pipeline.Workspace)/flask-app/'
                     contents: '**'
                     targetFolder: '/var/www/flask-app/'
 
                 - task: SSH@0
                   inputs:
-                    sshEndpoint: 'Production-vm'
+                    sshEndpoint: 'VM-connection'
                     runOptions: 'inline'
                     inline: |
                       sudo apt-get update
