@@ -496,7 +496,7 @@ def rate_students():
             mongo.close()
             return dumps({"profile": student.get('profile', {})}), 200
 
-
+#test
 
 @app.route('/logout')
 def logout():
