@@ -1,12 +1,12 @@
 trigger:
-  - azure-pipelines
+  - main
 
 stages:
   - stage: Build
     jobs:
       - job: BuildReactApp
         pool:
-          name: 'Azure Pipelines'
+          name: 'Azure pipelines'
         steps:
           - task: NodeTool@0
             inputs:
@@ -17,11 +17,11 @@ stages:
               npm run build
             displayName: 'Build React App'
           - publish: $(System.DefaultWorkingDirectory)/frontend/build
-            artifact: react-build
+            artifact: react-build-latest
 
       - job: BuildFlaskApp
         pool:
-          name: 'Azure Pipelines'
+          name: 'Azure pipelines'
         steps:
           - task: UsePythonVersion@0
             inputs:
@@ -33,7 +33,7 @@ stages:
               pip install -r backend/requirements.txt
             displayName: 'Set up Flask environment'
           - publish: $(System.DefaultWorkingDirectory)/backend
-            artifact: flask-app
+            artifact: flask-app-latest
 
   - stage: Deploy
     jobs:
@@ -47,41 +47,40 @@ stages:
               steps:
                 - task: DownloadPipelineArtifact@2
                   inputs:
-                    artifactName: 'react-build'
-                    targetPath: '$(Pipeline.Workspace)/react-build'
+                    artifactName: 'react-build-latest'
+                    targetPath: '$(Pipeline.Workspace)/react-build-latest'
                 
                 - task: DownloadPipelineArtifact@2
                   inputs:
-                    artifactName: 'flask-app'
-                    targetPath: '$(Pipeline.Workspace)/flask-app'
+                    artifactName: 'flask-app-latest'
+                    targetPath: '$(Pipeline.Workspace)/flask-app-latest'
 
                 - task: SSH@0
                   inputs:
                     sshEndpoint: 'VM-connection'
                     runOptions: 'commands'
                     commands: |
-                      mkdir -p /var/www
                       sudo chmod -R 777 /var/www
-                      sudo rm -r '/var/www/react-app'
-                      sudo rm -r '/var/www/flask-app'
-                      mkdir -p '/var/www/react-app'
-                      mkdir -p '/var/www/flask-app'
+                      sudo rm -r '/var/www/react-app-latest'
+                      sudo rm -r '/var/www/flask-app-latest'
+                      mkdir -p '/var/www/react-app-latest'
+                      mkdir -p '/var/www/flask-app-latest'
                       mkdir -p '/home/azureuser/uploads'
                       sudo chmod -R 777 /home/azureuser/uploads
                       
                 - task: CopyFilesOverSSH@0
                   inputs:
                     sshEndpoint: 'VM-connection'
-                    sourceFolder: '$(Pipeline.Workspace)/react-build/'
+                    sourceFolder: '$(Pipeline.Workspace)/react-build-latest/'
                     contents: '**'
-                    targetFolder: '/var/www/react-app/'
+                    targetFolder: '/var/www/react-app-latest/'
                 
                 - task: CopyFilesOverSSH@0
                   inputs:
                     sshEndpoint: 'VM-connection'
-                    sourceFolder: '$(Pipeline.Workspace)/flask-app/'
+                    sourceFolder: '$(Pipeline.Workspace)/flask-app-latest/'
                     contents: '**'
-                    targetFolder: '/var/www/flask-app/'
+                    targetFolder: '/var/www/flask-app-latest/'
 
                 - task: SSH@0
                   inputs:
@@ -92,7 +91,7 @@ stages:
                       sudo apt-get install -y nginx python3-venv
                        
                       # Set up Flask app
-                      cd /var/www/flask-app
+                      cd /var/www/flask-app-latest
                       python3 -m venv venv
                       source venv/bin/activate
                       pip install -r requirements.txt
@@ -109,12 +108,14 @@ stages:
                       
                       # Configure Nginx
                       #sudo ln -sf /etc/nginx/sites-available/myapp /etc/nginx/sites-enabled/
+                      # sudo systemctl stop nginx
+                      sudo rm /etc/nginx/conf.d/neptune-plastics.conf
                       sudo tee /etc/nginx/conf.d/neptune-plastics.conf <<EOF
                       server {
                           listen 80;
 
                           location / {
-                              root /var/www/react-app;
+                              root /var/www/react-app-latest;
                               try_files \$uri /index.html;
                           }
 
@@ -129,4 +130,4 @@ stages:
                       #sudo ln -s /etc/nginx/sites-available/myapp /etc/nginx/sites-enabled/
                       sudo nginx -t
                       sudo systemctl restart nginx
-                      (cd /var/www/flask-app && flask run --debug &)
+                      (cd /var/www/flask-app-latest && flask run --debug &)
