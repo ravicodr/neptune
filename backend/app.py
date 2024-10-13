@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response, stream_with_context
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from flask_cors import CORS
@@ -76,9 +76,90 @@ if __name__ == '__app__':
 
 mongo = MongoClient(MONGO_DB_URI)
 
+def stream_assistant_response(thread_id, run_id, userId, institutionId, assistantId, agent_name, jd_id, profile_id):
+    max_retries = 3
+    retry_delay = 1
+
+    for attempt in range(max_retries):
+        try:
+            while True:
+                try:
+                    run = openai_client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run_id)
+                    
+                    if run.status == 'requires_action':
+                        structured_response = json.loads(
+                            run.required_action.submit_tool_outputs.tool_calls[0].function.arguments
+                        )
+                        yield json.dumps({
+                            'type': 'function_call',
+                            'content': structured_response
+                        }) + '\n'
+                    elif run.status == 'completed':
+                        messages = openai_client.beta.threads.messages.list(thread_id=thread_id)
+                        for msg in messages:
+                            if msg.role == 'assistant':
+                                for content in msg.content:
+                                    if content.type == 'text':
+                                        structured_content = handle_assistant_response(content.text.value, agent_name, userId, institutionId, thread_id, jd_id, profile_id)
+                                        yield json.dumps({
+                                            'type': 'message',
+                                            'content': structured_content
+                                        }) + '\n'
+                        yield json.dumps({'type': 'status', 'content': 'DONE'}) + '\n'
+                        return
+                    elif run.status in ['failed', 'cancelled', 'expired']:
+                        yield json.dumps({
+                            'type': 'error',
+                            'content': f'Run {run.status}: {getattr(run, "last_error", "Unknown error")}'
+                        }) + '\n'
+                        return
+                    time.sleep(0.5)
+                except Exception as e:
+                    if attempt < max_retries - 1:
+                        time.sleep(retry_delay)
+                        retry_delay *= 2  # Exponential backoff
+                        continue
+                    else:
+                        yield json.dumps({
+                            'type': 'error',
+                            'content': f'OpenAI API error: {str(e)}'
+                        }) + '\n'
+                        return
+        except Exception as e:
+            yield json.dumps({
+                'type': 'error',
+                'content': f'Unexpected error: {str(e)}'
+            }) + '\n'
+            return
+
+def handle_assistant_response(response_text, agent_name, userId, institutionId, thread_id, jd_id, profile_id):
+    if agent_name == 'profile-creator':
+        structured_content = parse_and_structure_response(response_text, userId, institutionId)
+        try:
+            structured_content['threadId'] = thread_id
+            result = mongo.wonsulting.profile.insert_one(structured_content)
+            inserted_id = str(result.inserted_id)
+            structured_content['_id'] = inserted_id
+        except pymongo.errors.DuplicateKeyError:
+            new_id = ObjectId()
+            structured_content['_id'] = str(new_id)
+            mongo.wonsulting.profile.insert_one(structured_content)
+        return structured_content
+    else:
+        try:
+            structured_content = json.loads(response_text)
+        except json.JSONDecodeError:
+            structured_content = {"content": response_text}
+        structured_content['thread'] = thread_id
+        structured_content['jd_id'] = jd_id
+        structured_content['profile_id'] = profile_id
+        return structured_content
+
+
 @app.route('/index')
 def index():
-    return 'Hi'
+    with app.app_context():
+        return 'Hi'
 
 @app.route('/signup',methods=['POST','GET'])
 def signup():
@@ -167,161 +248,273 @@ def protected():
         return jsonify(logged_in_as=student['phone']), 200
     return jsonify({"message": "User not found"}), 404
 
-@app.route('/upload', methods=['POST','GET'])
-@jwt_required()
-def upload_file_and_run_thread():
-    current_user_id = get_jwt_identity()
-    
-    db = mongo[DB_NAME]
-    students=db['students']
-    
-    
-    uploaded_file = request.files['file']
-    #print(uploaded_file)
-    client=OpenAI(api_key=API_KEY)
-
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-    # file = open(app.config['UPLOAD_FOLDER']+uploaded_file.filename, 'w')
-    # file.write(uploaded_file.stream)
-    # file.close()
-
-    filename = secure_filename(uploaded_file.filename)
-    file_path=os.path.join(UPLOAD_FOLDER, uploaded_file.filename)
-    uploaded_file.save(file_path)
-    #print(file_path)
-
-    file = client.files.create(
-        file=open(file_path, "rb"),
-        purpose='assistants'
-        )
-
-    thread = client.beta.threads.create()
-
-    message = client.beta.threads.messages.create(
-        thread_id=thread.id,
-        role="user",
-        content="Extract the details from the CV.",
-        attachments= [ { "file_id": file.id, "tools": [{"type": "file_search"}] } ],
-        # file_ids=[file.id],
+# @app.route('/upload', methods=['POST','GET'])
+# @jwt_required()
+# def upload_file_and_run_thread():
+#     with app.app_context():
+#         current_user_id = get_jwt_identity()
         
-    )
-    run = client.beta.threads.runs.create(
-    thread_id=thread.id,
-    assistant_id=ASSISTANT_ID_CV)
-
-    # run = 
+#         db = mongo[DB_NAME]
+#         students=db['students']
         
-    # #print(run.status)
-    # #print(run)
-    # #print(run.status)
+        
+#         uploaded_file = request.files['file']
+#         #print(uploaded_file)
+#         client=OpenAI(api_key=API_KEY)
 
-    # thread_messages = client.beta.threads.messages.list("thread_abc123")
-    # for i in range(60):
-    run_status = client.beta.threads.runs.retrieve(
-        thread_id=thread.id,
-        run_id=run.id
-    )
-    # #print(run_status)
+#         os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-    for i in range(60):
-        #print(f"Waiting for response... ({i} seconds)")
+#         # file = open(app.config['UPLOAD_FOLDER']+uploaded_file.filename, 'w')
+#         # file.write(uploaded_file.stream)
+#         # file.close()
 
-        # get the latest run state
-        result = client.beta.threads.runs.retrieve(
-            thread_id=thread.id,
-            run_id=run.id
-        )
+#         filename = secure_filename(uploaded_file.filename)
+#         file_path=os.path.join(UPLOAD_FOLDER, uploaded_file.filename)
+#         uploaded_file.save(file_path)
+#         #print(file_path)
 
-        if result.status == "requires_action": # run has executed
-            # parse structured response from the tool call
-            structured_response = json.loads(
-        # fetch json from function arguments
-                result.required_action.submit_tool_outputs.\
-                    tool_calls[0].function.arguments
-            )
-            #print(structured_response)
-            break
-            # return structured_response
+#         file = client.files.create(
+#             file=open(file_path, "rb"),
+#             purpose='assistants'
+#             )
 
-        # wait 1 second before retry
-        time.sleep(1)
+#         thread = client.beta.threads.create()
 
-    
-    result = mongo.db.students.update_one(
-        {"_id": ObjectId(current_user_id)},
-        {"$set": {"tasks": {"Uploading CV": True,"Completing the Profile": False,"Starting the EQ test": False,"Submit EQ test": False}}},
-    )
+#         message = client.beta.threads.messages.create(
+#             thread_id=thread.id,
+#             role="user",
+#             content="Extract the details from the CV.",
+#             attachments= [ { "file_id": file.id, "tools": [{"type": "file_search"}] } ],
+#             # file_ids=[file.id],
             
-    client.close()
-    return structured_response
+#         )
+#         run = client.beta.threads.runs.create(
+#         thread_id=thread.id,
+#         assistant_id=ASSISTANT_ID_CV)
 
-@app.route('/start-virtual-interview',methods=['POST','GET'])
+#         # run = 
+            
+#         # #print(run.status)
+#         # #print(run)
+#         # #print(run.status)
+
+#         # thread_messages = client.beta.threads.messages.list("thread_abc123")
+#         # for i in range(60):
+#         run_status = client.beta.threads.runs.retrieve(
+#             thread_id=thread.id,
+#             run_id=run.id
+#         )
+#         # #print(run_status)
+        
+
+#         for i in range(60):
+#             #print(f"Waiting for response... ({i} seconds)")
+
+#             # get the latest run state
+#             result = client.beta.threads.runs.retrieve(
+#                 thread_id=thread.id,
+#                 run_id=run.id
+#             )
+
+#             if result.status == "requires_action": # run has executed
+#                 # parse structured response from the tool call
+#                 structured_response = json.loads(
+#             # fetch json from function arguments
+#                 result.required_action.submit_tool_outputs.\
+#                     tool_calls[0].function.arguments
+#                 )
+#             elif result.status == 'completed':
+#                 messages = openai_client.beta.threads.messages.list(thread_id=thread_id)
+#                 for msg in messages:
+#                     if msg.role == 'assistant':
+#                         for content in msg.content:
+#                             if content.type == 'text':
+#                                 structured_content = content.text.value
+#                                 print(structured_content)
+#                                 print(json.loads(structured_content))
+#                                 yield json.dumps({
+#                                     'type': 'message',
+#                                     'content': structured_content
+#                                 }) + '\n'
+#                 yield json.dumps({'type': 'status', 'content': 'DONE'}) + '\n'
+#                 return
+#             elif run.status in ['failed', 'cancelled', 'expired']:
+#                 yield json.dumps({
+#                     'type': 'error',
+#                     'content': f'Run {run.status}: {getattr(run, "last_error", "Unknown error")}'
+#                 }) + '\n'
+#                 return
+#                 time.sleep(0.5)
+#                 #print(structured_response)
+#                 break
+#                 # return structured_response
+
+#             # wait 1 second before retry
+#             time.sleep(1)
+
+        
+#         result = mongo.db.students.update_one(
+#             {"_id": ObjectId(current_user_id)},
+#             {"$set": {"tasks": {"Uploading CV": True,"Completing the Profile": False,"Starting the EQ test": False,"Submit EQ test": False}}},
+#         )
+                
+#         client.close()
+#         # return structured_response
+@app.route('/upload', methods=['POST'])
+@jwt_required()
+def upload_file():
+    def generate():
+        try:
+            current_user_id = get_jwt_identity()
+            
+            db = mongo[DB_NAME]
+            students = db['students']
+            
+            uploaded_file = request.files['file']
+            client = OpenAI(api_key=API_KEY)
+
+            os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+            filename = secure_filename(uploaded_file.filename)
+            file_path = os.path.join(UPLOAD_FOLDER, filename)
+            uploaded_file.save(file_path)
+
+            file = client.files.create(
+                file=open(file_path, "rb"),
+                purpose='assistants'
+            )
+
+            thread = client.beta.threads.create()
+
+            message = client.beta.threads.messages.create(
+                thread_id=thread.id,
+                role="user",
+                content="Extract the details from the CV.",
+                attachments=[{"file_id": file.id, "tools": [{"type": "file_search"}]}],
+            )
+            
+            run = client.beta.threads.runs.create(
+                thread_id=thread.id,
+                assistant_id=ASSISTANT_ID_CV
+            )
+
+            for i in range(60):
+                result = client.beta.threads.runs.retrieve(
+                    thread_id=thread.id,
+                    run_id=run.id
+                )
+
+                if result.status == "completed":
+                    messages = client.beta.threads.messages.list(thread_id=thread.id)
+                    for msg in messages:
+                        if msg.role == 'assistant':
+                            for content in msg.content:
+                                if content.type == 'text':
+                                    structured_content = json.loads(content.text.value)
+                                    result = students.update_one(
+                                    {"_id": ObjectId(current_user_id)},
+                                    {"$set": {"tasks": {"Uploading CV": True, "Completing the Profile": False, "Starting the EQ test": False, "Submit EQ test": False}}},
+                                    )
+                                        
+                                    client.close()
+                                    yield json.dumps(structured_content) + '\n'
+                    # yield json.dumps({'type': 'status', 'content': 'DONE'}) + '\n'
+                    break
+                elif result.status in ['failed', 'cancelled', 'expired']:
+                    yield json.dumps({
+                        'type': 'error',
+                        'content': f'Run {result.status}: {getattr(result, "last_error", "Unknown error")}'
+                    }) + '\n'
+                    break
+
+                time.sleep(1)
+
+            
+
+        except Exception as e:
+            yield json.dumps({
+                'type': 'error',
+                'content': str(e)
+            }) + '\n'
+
+    return Response(stream_with_context(generate()), mimetype='application/json')
+
+
+
+# from flask import current_app, Response, stream_with_context
+# import json
+
+@app.route('/start-virtual-interview', methods=['POST'])
 @jwt_required()
 def start_virtual_interview():
     current_user_id = get_jwt_identity()
     
     db = mongo[DB_NAME]
-    students=db['students']
+    students = db['students']
 
-    if request.method == 'POST':
-        client=OpenAI(api_key=API_KEY)
-        thread = client.beta.threads.create()
+    def generate():
+        try:
+            client = OpenAI(api_key=API_KEY)
+            thread = client.beta.threads.create()
 
-        message = client.beta.threads.messages.create(
-            thread_id=thread.id,
-            role="user",
-            content="Generate EQ Questions"    
-        )
-        run = client.beta.threads.runs.create(
-        thread_id=thread.id,
-        assistant_id=ASSISTANT_ID_EQ_Q)
-
-        run_status = client.beta.threads.runs.retrieve(
-            thread_id=thread.id,
-            run_id=run.id
-        )
-        # #print(run_status)
-
-        for i in range(60):
-            #print(f"Waiting for response... ({i} seconds)")
-
-            # get the latest run state
-            result = client.beta.threads.runs.retrieve(
+            message = client.beta.threads.messages.create(
                 thread_id=thread.id,
-                run_id=run.id
+                role="user",
+                content="Generate EQ Questions"    
+            )
+            run = client.beta.threads.runs.create(
+                thread_id=thread.id,
+                assistant_id=ASSISTANT_ID_EQ_Q
             )
 
-            if result.status == "requires_action": 
-                # run has executed
-                # parse structured response from the tool call
-                structured_response = json.loads(
-            # fetch json from function arguments
-                    result.required_action.submit_tool_outputs.\
-                        tool_calls[0].function.arguments
+            for i in range(60):
+                result = client.beta.threads.runs.retrieve(
+                    thread_id=thread.id,
+                    run_id=run.id
                 )
-                #print(structured_response)
-                break
-                # return structured_response
 
-            # wait 1 second before retry
-            time.sleep(1)
-        client.close()
-        structured_response["id"]=ObjectId()
-        result = mongo.db.students.update_one(
-            {'_id': ObjectId(current_user_id)},
-            {'$set': {'interviews': structured_response, 'tasks': {'Starting Virtual Interview': True,'Completing the Profile': True,'Starting the EQ test': True,'Submit EQ test': False,'Uploading CV': True}}},
-        )
-        
-        #print(result)
-        # result = mongo.db.students.update_one(,
-        #     {"$set": {"interviews": structured_response}}
-        # )
-        #print(structured_response)
-        # return structured_response
-        # isinstance(obj_id, ObjectId):
-        # return str(obj_id)
-        return {"interviewId":str(structured_response["id"])}
+                if result.status == "completed":
+                    messages = client.beta.threads.messages.list(thread_id=thread.id)
+                    for msg in messages:
+                        if msg.role == 'assistant':
+                            for content in msg.content:
+                                if content.type == 'text':
+                                    structured_content = json.loads(content.text.value)
+                                    structured_content["id"] = str(ObjectId())
+                                    students.update_one(
+                                        {'_id': ObjectId(current_user_id)},
+                                        {'$set': {
+                                            'interviews': structured_content, 
+                                            'tasks': {
+                                                'Starting Virtual Interview': True,
+                                                'Completing the Profile': True,
+                                                'Starting the EQ test': True,
+                                                'Submit EQ test': False,
+                                                'Uploading CV': True
+                                            }
+                                        }}
+                                    )
+                                    yield json.dumps({"interviewId": structured_content["id"]})
+                    break
+                elif result.status in ['failed', 'cancelled', 'expired']:
+                    yield json.dumps({
+                        'type': 'error',
+                        'content': f'Run {result.status}: {getattr(result, "last_error", "Unknown error")}'
+                    })
+                    break
+
+                time.sleep(1)
+
+            client.close()
+
+        except Exception as e:
+            # current_app.logger.error(f"Error in start_virtual_interview: {str(e)}")
+            yield json.dumps({
+                'type': 'error',
+                'content': str(e)
+            })
+
+    return Response(stream_with_context(generate()), mimetype='application/json')
 
 @app.route('/interview-questions/<interviewId>', methods=['GET'])
 @jwt_required()
