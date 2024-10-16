@@ -19,8 +19,11 @@ export const AuthProvider = ({ children }) => {
   const signup = async (phone, password) => {
     setError(null); // Clear previous errors
     try {
+      console.log("Signing up with phone:", phone, "and password:", password);
       const response = await api.post("/signup", { phone, password });
+      
       console.log("Signup response:", response);
+
       return response; // Return response for further use if needed
     } catch (err) {
       setError(err.message || "Something went wrong during signup");

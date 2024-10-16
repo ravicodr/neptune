@@ -48,10 +48,30 @@ const VirtualInterview = () => {
           headers: {
             Authorization: `Bearer ${token}`,
           },
+          responseType: 'stream',
         }
       );
-      const id = response.data.interviewId;
-      setInterviewId(id);
+
+      const reader = response.data.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        console.log("Received chunk:", chunk);
+
+        try {
+          const parsedChunk = JSON.parse(chunk);
+          if (parsedChunk.interviewId) {
+            setInterviewId(parsedChunk.interviewId);
+            break;
+          }
+        } catch (error) {
+          console.error("Error parsing chunk:", error);
+        }
+      }
     } catch (error) {
       console.error("Error starting interview:", error);
       alert("Failed to start interview. Please try again.");

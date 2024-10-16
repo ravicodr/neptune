@@ -13,7 +13,11 @@ import {
   TableRow,
   Button,
   TextField,
-  CircularProgress, // Import CircularProgress for loading spinner
+  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import { Description, CheckCircle, Group } from "@mui/icons-material";
 import api from "../api"; // Adjust the import based on your project structure
@@ -26,11 +30,29 @@ const AdminDashboard = () => {
   });
 
   const [selectedStudents, setSelectedStudents] = useState([]);
-  const [loading, setLoading] = useState(true); // Add loading state
+  const [loading, setLoading] = useState(true);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [formData, setFormData] = useState({
+    candidateName: "",
+    candidateAddress: "",
+    city: "",
+    state: "",
+    zipCode: "",
+    companyName: "",
+    departmentName: "",
+    supervisorName: "",
+    startDate: "",
+    startTime: "",
+    endTime: "",
+    daysOfWeek: "",
+    acceptanceDeadlineDate: "",
+    yourName: "",
+    yourPosition: "",
+  });
 
   useEffect(() => {
     async function fetchData() {
-      setLoading(true); // Set loading to true when fetching starts
+      setLoading(true);
       try {
         const response = await api.get("/admin/dashboard", {
           headers: {
@@ -53,48 +75,41 @@ const AdminDashboard = () => {
           iqEqWrongAnswers: "",
           tenthMarks:
             student.profile.education.tenthBoardMarks.percentage || "",
-          status: student.interviews.approved ? "Approved" : "", // Assuming 'approved' is a boolean
-          comment: student.interviews.comment || "", // Initialize with existing comment if available
+          status: student.interviews.approved ? "Approved" : "",
+          comment: student.interviews.comment || "",
         }));
 
         setSelectedStudents(students);
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
-        setLoading(false); // Set loading to false after fetching
+        setLoading(false);
       }
     }
 
     fetchData();
   }, []);
 
-  const handleApprove = async (id) => {
-    try {
-      const student = selectedStudents.find((student) => student.id === id);
-      const response = await api.post(
-        `/admin/approve-student/${id}`,
-        {
-          comment: student.comment,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("adminToken")}`,
-          },
-        }
-      );
+  const handleApprove = (id) => {
+    setOpenDialog(true);
+  };
 
-      if (response.status === 200) {
-        setSelectedStudents((students) =>
-          students.map((student) =>
-            student.id === id ? { ...student, status: "Approved" } : student
-          )
-        );
-      } else {
-        console.error("Failed to approve student:", response.data.message);
-      }
-    } catch (error) {
-      console.error("Error approving student:", error);
-    }
+  const handleDialogClose = () => {
+    setOpenDialog(false);
+  };
+
+  const handleDialogSubmit = async () => {
+    // Implement the API call to approve the student with form data
+    console.log(formData);
+    setOpenDialog(false);
+  };
+
+  const handleFormChange = (event) => {
+    const { name, value } = event.target;
+    setFormData((prevFormData) => ({
+      ...prevFormData,
+      [name]: value,
+    }));
   };
 
   const handleCommentChange = (id, comment) => {
@@ -106,7 +121,6 @@ const AdminDashboard = () => {
   };
 
   if (loading) {
-    // Show spinner while loading
     return (
       <Container
         maxWidth="lg"
@@ -222,7 +236,7 @@ const AdminDashboard = () => {
                 <TableCell>
                   <TextField
                     value={student.comment}
-                    disabled={student.status === "Approved"} // Disable if approved
+                    disabled={student.status === "Approved"}
                     onChange={(e) =>
                       handleCommentChange(student.id, e.target.value)
                     }
@@ -232,13 +246,13 @@ const AdminDashboard = () => {
                       bgcolor: "#f9f9f9",
                       "& .MuiOutlinedInput-root": {
                         "& fieldset": {
-                          borderColor: "lightgray", // Default border color
+                          borderColor: "lightgray",
                         },
                         "&:hover fieldset": {
-                          borderColor: "green", // Border color on hover
+                          borderColor: "green",
                         },
                         "&.Mui-focused fieldset": {
-                          borderColor: "green", // Border color when focused
+                          borderColor: "green",
                         },
                       },
                     }}
@@ -269,6 +283,176 @@ const AdminDashboard = () => {
           </TableBody>
         </Table>
       </TableContainer>
+
+      <Dialog open={openDialog} onClose={handleDialogClose}>
+        <DialogTitle>Approve Student</DialogTitle>
+        <DialogContent>
+          <TextField
+            margin="dense"
+            name="candidateName"
+            label="Candidate's Name"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={formData.candidateName}
+            onChange={handleFormChange}
+          />
+          <TextField
+            margin="dense"
+            name="candidateAddress"
+            label="Candidate's Address"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={formData.candidateAddress}
+            onChange={handleFormChange}
+          />
+          <TextField
+            margin="dense"
+            name="city"
+            label="City"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={formData.city}
+            onChange={handleFormChange}
+          />
+          <TextField
+            margin="dense"
+            name="state"
+            label="State"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={formData.state}
+            onChange={handleFormChange}
+          />
+          <TextField
+            margin="dense"
+            name="zipCode"
+            label="Zip Code"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={formData.zipCode}
+            onChange={handleFormChange}
+          />
+          <TextField
+            margin="dense"
+            name="companyName"
+            label="Company Name"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={formData.companyName}
+            onChange={handleFormChange}
+          />
+          <TextField
+            margin="dense"
+            name="departmentName"
+            label="Department Name"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={formData.departmentName}
+            onChange={handleFormChange}
+          />
+          <TextField
+            margin="dense"
+            name="supervisorName"
+            label="Supervisor/Manager's Name"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={formData.supervisorName}
+            onChange={handleFormChange}
+          />
+          <TextField
+            margin="dense"
+            name="startDate"
+            label="Start Date"
+            type="date"
+            fullWidth
+            variant="outlined"
+            InputLabelProps={{ shrink: true }}
+            value={formData.startDate}
+            onChange={handleFormChange}
+          />
+          <TextField
+            margin="dense"
+            name="startTime"
+            label="Start Time"
+            type="time"
+            fullWidth
+            variant="outlined"
+            InputLabelProps={{ shrink: true }}
+            value={formData.startTime}
+            onChange={handleFormChange}
+          />
+          <TextField
+            margin="dense"
+            name="endTime"
+            label="End Time"
+            type="time"
+            fullWidth
+            variant="outlined"
+            InputLabelProps={{ shrink: true }}
+            value={formData.endTime}
+            onChange={handleFormChange}
+          />
+          <TextField
+            margin="dense"
+            name="daysOfWeek"
+            label="Days of the Week"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={formData.daysOfWeek}
+            onChange={handleFormChange}
+          />
+          <TextField
+            margin="dense"
+            name="acceptanceDeadlineDate"
+            label="Acceptance Deadline Date"
+            type="date"
+            fullWidth
+            variant="outlined"
+            InputLabelProps={{ shrink: true }}
+            value={formData.acceptanceDeadlineDate}
+            onChange={handleFormChange}
+          />
+          <TextField
+            margin="dense"
+            name="yourName"
+            label="Your Name"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={formData.yourName}
+            onChange={handleFormChange}
+          />
+          <TextField
+            margin="dense"
+            name="yourPosition"
+            label="Your Position"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={formData.yourPosition}
+            onChange={handleFormChange}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDialogClose}>Cancel</Button>
+          <Button
+            onClick={handleDialogSubmit}
+            variant="contained"
+            color="primary"
+          >
+            Approve
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

@@ -70,7 +70,7 @@ function App() {
             element={token ? <ProfileCompletion /> : <Navigate to="/login" />}
           />
           <Route
-            path="/virtual-interview"
+            path="/virtual-interview/:id"
             element={token ? <VirtualInterview /> : <Navigate to="/login" />}
           />
           <Route path="/admin-login" element={<AdminLogin />} />
