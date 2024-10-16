@@ -215,14 +215,14 @@ def profile():
     if request.method == 'GET':
         student = mongo.db.students.find_one({"_id": ObjectId(current_user_id)})
         if student:
-            #print(student)
+            ##print(student)
             return dumps({"profile": student.get('profile'),"tasks": student.get('tasks'),"interviews":student.get('interviews')}), 200
             #return dumps({"profile": student.get('profile'),"tasks": student.get('tasks')}), 200
         return jsonify({"message": "User not found"}), 404
     
     elif request.method == 'PUT':
         data = request.get_json()
-        #print(data)
+        ##print(data)
         profile_data = data
         
         # Validate and sanitize profile data here
@@ -259,7 +259,7 @@ def protected():
         
         
 #         uploaded_file = request.files['file']
-#         #print(uploaded_file)
+#         ##print(uploaded_file)
 #         client=OpenAI(api_key=API_KEY)
 
 #         os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -271,7 +271,7 @@ def protected():
 #         filename = secure_filename(uploaded_file.filename)
 #         file_path=os.path.join(UPLOAD_FOLDER, uploaded_file.filename)
 #         uploaded_file.save(file_path)
-#         #print(file_path)
+#         ##print(file_path)
 
 #         file = client.files.create(
 #             file=open(file_path, "rb"),
@@ -294,9 +294,9 @@ def protected():
 
 #         # run = 
             
-#         # #print(run.status)
-#         # #print(run)
-#         # #print(run.status)
+#         # ##print(run.status)
+#         # ##print(run)
+#         # ##print(run.status)
 
 #         # thread_messages = client.beta.threads.messages.list("thread_abc123")
 #         # for i in range(60):
@@ -304,11 +304,11 @@ def protected():
 #             thread_id=thread.id,
 #             run_id=run.id
 #         )
-#         # #print(run_status)
+#         # ##print(run_status)
         
 
 #         for i in range(60):
-#             #print(f"Waiting for response... ({i} seconds)")
+#             ##print(f"Waiting for response... ({i} seconds)")
 
 #             # get the latest run state
 #             result = client.beta.threads.runs.retrieve(
@@ -330,8 +330,8 @@ def protected():
 #                         for content in msg.content:
 #                             if content.type == 'text':
 #                                 structured_content = content.text.value
-#                                 print(structured_content)
-#                                 print(json.loads(structured_content))
+#                                 #print(structured_content)
+#                                 #print(json.loads(structured_content))
 #                                 yield json.dumps({
 #                                     'type': 'message',
 #                                     'content': structured_content
@@ -345,7 +345,7 @@ def protected():
 #                 }) + '\n'
 #                 return
 #                 time.sleep(0.5)
-#                 #print(structured_response)
+#                 ##print(structured_response)
 #                 break
 #                 # return structured_response
 
@@ -481,19 +481,11 @@ def start_virtual_interview():
                                 if content.type == 'text':
                                     structured_content = json.loads(content.text.value)
                                     structured_content["id"] = str(ObjectId())
-                                    students.update_one(
-                                        {'_id': ObjectId(current_user_id)},
-                                        {'$set': {
-                                            'interviews': structured_content, 
-                                            'tasks': {
-                                                'Starting Virtual Interview': True,
-                                                'Completing the Profile': True,
-                                                'Starting the EQ test': True,
-                                                'Submit EQ test': False,
-                                                'Uploading CV': True
-                                            }
-                                        }}
-                                    )
+                                    # result = mongo.db.students.update_one(
+                                    #     {'_id': ObjectId(current_user_id)},
+                                    #     {'$set': {'interviews': structured_response, 'tasks': {'Starting Virtual Interview': True,'Completing the Profile': True,'Starting the EQ test': True,'Submit EQ test': False,'Uploading CV': True}}},
+                                    # )
+                                    
                                     yield json.dumps({"interviewId": structured_content["id"]})
                     break
                 elif result.status in ['failed', 'cancelled', 'expired']:
@@ -506,6 +498,20 @@ def start_virtual_interview():
                 time.sleep(1)
 
             client.close()
+            #print("reached")
+            result=mongo.db.students.update_one(
+                                        {'_id': ObjectId(current_user_id)},
+                                        {'$set': {
+                                            'interviews': structured_content, 
+                                            'tasks': {
+                                                'Starting Virtual Interview': True,
+                                                'Completing the Profile': True,
+                                                'Starting the EQ test': True,
+                                                'Submit EQ test': False,
+                                                'Uploading CV': True
+                                            }
+                                        }}
+                                    )
 
         except Exception as e:
             # current_app.logger.error(f"Error in start_virtual_interview: {str(e)}")
@@ -523,8 +529,10 @@ def interview_questions(interviewId):
     
     db = mongo[DB_NAME]
     students = db['students']
+    #print(interviewId)
+    #print(current_user_id)
 
-    result = mongo.db.students.find_one({"_id": ObjectId(current_user_id), "interviews.id": ObjectId(interviewId)},
+    result = mongo.db.students.find_one({"_id": ObjectId(current_user_id), "interviews.id": interviewId},
                                          {"interviews.$": 1})
     #print(result)
     
@@ -549,7 +557,7 @@ def submit_interview(interviewId):
     answers = data.get('answers', [])
     
     result = mongo.db.students.find_one(
-        {"_id": ObjectId(current_user_id), "interviews.id": ObjectId(interviewId)},
+        {"_id": ObjectId(current_user_id), "interviews.id": interviewId},
         {"interviews.$": 1}
     )
 
@@ -583,32 +591,32 @@ def submit_interview(interviewId):
         iti_trade=student["profile"]["education"]["graduationDegree"]
         # iti_trade = next((edu["graduationDegree"] for edu in student.get("education", []) if "ITI" in edu.get("degree", "").upper()), None)
         if iti_trade and iti_trade.upper() not in ["ELECTRONICS", "ELECTRICAL"]:
-            #print(f"Candidate is not eligible due to ITI trade: {iti_trade}")
+            ##print(f"Candidate is not eligible due to ITI trade: {iti_trade}")
             rejectionReason = "Degree not eligible for virtual interview"
-            #print(iti_trade)
+            ##print(iti_trade)
             
 
         # 2. Parents' income condition
         parents_income=student["profile"]["familyInfo"]["parentsAnnualIncome"]
         # parents_income = student.get("familyInfo", {}).get("parentsAnnualIncome", 0)
         if int(parents_income) > 1500000:  # 15 lac in rupees
-            #print("Candidate is not eligible due to high parents' income.")
+            ##print("Candidate is not eligible due to high parents' income.")
             rejectionReason = "Annual Income not eligible for virtual interview"
-            #print(parents_income)
+            ##print(parents_income)
             
 
         # 3. Parents' profession condition
         parent_professions = [student.get("profile", {}).get("familyInfo", {}).get("fathersProfession"), 
                             student.get("profile", {}).get("familyInfo", {}).get("mothersProfession")]
         if any(prof in ["JUDGE", "IAS", "IPS"] for prof in parent_professions if prof):
-            #print("Candidate is not eligible due to parent's profession.")
+            ##print("Candidate is not eligible due to parent's profession.")
             rejectionReason = "Profession not eligible for virtual interview"
-            #print(parent_professions)
+            ##print(parent_professions)
            
 
         # 4. IQ/EQ questions condition
         if total_score < 70:
-            #print("Candidate is not eligible due to low IQ/EQ score.")
+            ##print("Candidate is not eligible due to low IQ/EQ score.")
             rejectionReason = "IQ/EQ score not eligible for virtual interview"
             
 
@@ -617,15 +625,15 @@ def submit_interview(interviewId):
         # iti_trade = next((edu["graduationDegree"] for edu in student.get("education", []) if "ITI" in edu.get("degree", "").upper()), None)
         tenth_marks=int(student["profile"]["education"]["tenthBoardMarks"]["percentage"])
         if tenth_marks is not None and tenth_marks > 75:
-            #print(f"Candidate is not eligible due to high 10th marks: {tenth_marks}%")
+            ##print(f"Candidate is not eligible due to high 10th marks: {tenth_marks}%")
             rejectionReason = "10th marks not eligible for virtual interview"
-            #print(tenth_marks)
+            ##print(tenth_marks)
             
 
-    #print(iti_trade)
-    #print(parents_income)
-    #print(parent_professions)
-    #print(tenth_marks)
+    ##print(iti_trade)
+    ##print(parents_income)
+    ##print(parent_professions)
+    ##print(tenth_marks)
     
     
     # Store the score in the database if needed
@@ -654,36 +662,36 @@ def rate_students():
             # 1. ITI trade condition
             iti_trade = next((edu["degree"] for edu in student.get("education", []) if "ITI" in edu.get("degree", "").upper()), None)
             if iti_trade and iti_trade.upper() not in ["ELECTRONICS", "ELECTRICAL"]:
-                #print(f"Candidate is not eligible due to ITI trade: {iti_trade}")
+                ##print(f"Candidate is not eligible due to ITI trade: {iti_trade}")
                 return
 
             # 2. Parents' income condition
             parents_income = student.get("familyInfo", {}).get("parentsIncome", 0)
             if parents_income > 1500000:  # 15 lac in rupees
-                #print("Candidate is not eligible due to high parents' income.")
+                ##print("Candidate is not eligible due to high parents' income.")
                 return
 
             # 3. Parents' profession condition
             # parent_professions = [data.get("familyInfo", {}).get("fatherProfession"), 
             #                     data.get("familyInfo", {}).get("motherProfession")]
             # if any(prof in ["JUDGE", "IAS", "IPS"] for prof in parent_professions if prof):
-            #     #print("Candidate is not eligible due to parent's profession.")
+            #     ##print("Candidate is not eligible due to parent's profession.")
             #     return
 
             # 4. IQ/EQ questions condition
             # iq_eq_score = data.get("testScores", {}).get("iqEqCorrect", 0)
             # if iq_eq_score <= 2:
-            #     #print("Candidate is not eligible due to low IQ/EQ score.")
+            #     ##print("Candidate is not eligible due to low IQ/EQ score.")
             #     return
 
             # 5. 10th marks condition
             # tenth_marks = next((float(edu["percentage"]) for edu in data.get("education", []) 
             #                     if edu.get("degree", "").upper() == "HIGH SCHOOL"), None)
             # if tenth_marks is not None and tenth_marks > 80:
-            #     #print(f"Candidate is not eligible due to high 10th marks: {tenth_marks}%")
+            #     ##print(f"Candidate is not eligible due to high 10th marks: {tenth_marks}%")
             #     return
 
-            # #print("Candidate is eligible based on all criteria.")
+            # ##print("Candidate is eligible based on all criteria.")
             #     # return dumps({"profile": student.get('profile', {})}), 200
             #     return jsonify({"message": "User not found"}), 404
             mongo.close()
@@ -792,7 +800,7 @@ def approve_student(student_id):
     data = request.get_json()
     comment = data.get('comment', '')
 
-    print(f"Approving student: {student_id}, Comment: {comment}")  # Log the student_id and comment
+    #print(f"Approving student: {student_id}, Comment: {comment}")  # Log the student_id and comment
 
     result = mongo.db.students.update_one(
         {"_id": ObjectId(student_id)},
