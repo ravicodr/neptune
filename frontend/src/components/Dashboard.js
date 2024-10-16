@@ -15,6 +15,8 @@ import {
   Divider,
   LinearProgress,
   Avatar,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import {
   Person,
@@ -35,8 +37,11 @@ import api from "../api";
 const StudentDashboard = () => {
   const [studentData, setStudentData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState("info");
   const navigate = useNavigate();
-  const { token,user,tasks,setTasks,setUser } = useAuth();
+  const { token, user, tasks, setTasks, setUser } = useAuth();
 
   useEffect(() => {
     const fetchStudentData = async () => {
@@ -46,10 +51,8 @@ const StudentDashboard = () => {
             Authorization: `Bearer ${token}`,
           },
         });
-        setUser(response.data.profile)
+        setUser(response.data.profile);
         setTasks(response.data.tasks);
-        // const data = response.user?.user;
-        // const otherInfo = response.data;
 
         setStudentData({
           name: user?.personalInfo?.name || "Name not provided",
@@ -106,16 +109,41 @@ const StudentDashboard = () => {
         });
       } catch (error) {
         console.error("Error fetching student data:", error);
+        setSnackbarMessage("Error fetching student data. Please try again.");
+        setSnackbarSeverity("error");
+        setSnackbarOpen(true);
       } finally {
         setLoading(false);
       }
     };
 
     fetchStudentData();
-  }, [token, tasks]);
+  }, [token]);
 
-  const handleStartInterview = () => {
-    navigate("/virtual-interview");
+  const handleStartInterview = async () => {
+    try {
+      setLoading(true);
+      const response = await api.post("/start-virtual-interview", null, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      console.log("Start interview response:", response.data);
+
+      if (response.data && response.data.interviewId) {
+        navigate(`/virtual-interview/${response.data.interviewId}`);
+      } else {
+        throw new Error("No interview ID received");
+      }
+    } catch (error) {
+      console.error("Error starting interview:", error);
+      setSnackbarMessage("Error starting interview. Please try again.");
+      setSnackbarSeverity("error");
+      setSnackbarOpen(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getStatusIcon = (status) => {
@@ -132,12 +160,14 @@ const StudentDashboard = () => {
   };
 
   const calculateProfileCompletion = (data) => {
-    const totalFields = 2;
-    const filledFields = [
-      user?.personalInfo.name,
-      user?.personalInfo.emailId,
-      user?.personalInfo.mobileNumber,
-    ].filter(Boolean).length;
+    const totalFields =
+      Object.keys(data.personalInfo).length +
+      Object.keys(data.education).length +
+      Object.keys(data.parentInfo).length;
+    const filledFields =
+      Object.values(data.personalInfo).filter(Boolean).length +
+      Object.values(data.education).filter(Boolean).length +
+      Object.values(data.parentInfo).filter(Boolean).length;
 
     return (filledFields / totalFields) * 100;
   };
@@ -155,8 +185,31 @@ const StudentDashboard = () => {
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Paper elevation={3} sx={{ p: 4 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 4,
+          }}
+        >
+          <Typography variant="h4" component="div">
+            Student Dashboard
+          </Typography>
+          <Box>
+            <Typography variant="subtitle1" component="div" sx={{ mr: 2 }}>
+              Profile Completion: {Math.round(profileCompletion)}%
+            </Typography>
+            <LinearProgress
+              variant="determinate"
+              value={profileCompletion}
+              sx={{ height: 10, borderRadius: 5 }}
+            />
+          </Box>
+        </Box>
+
         <Box sx={{ display: "flex", justifyContent: "center", mb: 4 }}>
-          <Typography variant="h4" component="div" sx={{ mr: 2 }}>
+          <Typography variant="h5" component="div" sx={{ mr: 2 }}>
             Application Status:
           </Typography>
           <Chip
@@ -277,9 +330,9 @@ const StudentDashboard = () => {
                 sx={{ mt: 2 }}
                 startIcon={<PlayArrow />}
                 onClick={handleStartInterview}
-                disabled={studentData.interviewSubmitted}
+                disabled={studentData.interviewSubmitted || loading}
               >
-                Start Interview
+                {loading ? "Starting Interview..." : "Start Interview"}
               </Button>
             </Paper>
           </Grid>
@@ -300,6 +353,19 @@ const StudentDashboard = () => {
           </Grid>
         </Grid>
       </Paper>
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={() => setSnackbarOpen(false)}
+      >
+        <Alert
+          onClose={() => setSnackbarOpen(false)}
+          severity={snackbarSeverity}
+          sx={{ width: "100%" }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };

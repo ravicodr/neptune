@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import {
   Box,
   Button,
-  TextField,
   Typography,
   Snackbar,
   Alert,
@@ -11,24 +10,25 @@ import {
   Container,
   Paper,
 } from "@mui/material";
-import { useAuth } from "../contexts/AuthContext"; // Import AuthContext for authentication
-import api from "../api"; // Import the apiService for API calls
-import logo from "../assets/logo.jpg"; // Import the logo
+import { useAuth } from "../contexts/AuthContext";
+import api from "../api"; // Import the api service
+import logo from "../assets/logo.jpg";
 
 const CVUpload = () => {
   const [file, setFile] = useState(null);
-  const [fileName, setFileName] = useState(""); // State to hold the selected file name
+  const [fileName, setFileName] = useState("");
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
-  const [loading, setLoading] = useState(false); // Add loading state
-  const { user, setUser, token } = useAuth(); // Access user information from AuthContext
+  const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const { token } = useAuth();
   const navigate = useNavigate();
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
-    setFile(selectedFile); // Set the selected file
-    setFileName(selectedFile ? selectedFile.name : ""); // Set the file name
+    setFile(selectedFile);
+    setFileName(selectedFile ? selectedFile.name : "");
   };
 
   const handleUpload = async (e) => {
@@ -41,36 +41,66 @@ const CVUpload = () => {
       return;
     }
 
-    setLoading(true); // Set loading to true before starting the upload
+    setLoading(true);
+    setUploadProgress(0);
 
     const formData = new FormData();
     formData.append("file", file);
 
     try {
-      // Call the upload API
       const response = await api.post("/upload", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
           Authorization: `Bearer ${token}`,
         },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(percentCompleted);
+        },
       });
-      console.log("Upload response:", response);
 
-      setUser(response.data);
-      setSnackbarMessage("CV uploaded successfully!");
+      console.log("Raw API response:", response.data);
+
+      let profileData = {};
+      let errorMessage = null;
+
+      // Assuming the response.data is a string containing JSON objects separated by newlines
+      const lines = response.data.split('\n');
+      for (const line of lines) {
+        if (line.trim()) {
+          try {
+            const parsedData = JSON.parse(line);
+            if (parsedData.type === 'error') {
+              errorMessage = parsedData.content;
+            } else {
+              profileData = { ...profileData, ...parsedData };
+            }
+          } catch (error) {
+            console.error("Error parsing JSON:", error);
+          }
+        }
+      }
+
+     
+
+      if (Object.keys(profileData).length === 0) {
+        throw new Error("No valid profile data extracted from the response");
+      }
+
+      setSnackbarMessage("CV uploaded and processed successfully!");
       setSnackbarSeverity("success");
       setSnackbarOpen(true);
 
-      // Pass the uploaded CV data to the ProfileCompletion page
-      navigate("/profile-completion", {
-        state: { profileData: response.data },
-      });
+      console.log("Profile data to be passed:", profileData);
+      navigate("/profile-completion", { state: { profileData } });
     } catch (error) {
+      console.error("Error in CV upload:", error);
       setSnackbarMessage(error.message || "Error uploading CV");
       setSnackbarSeverity("error");
       setSnackbarOpen(true);
     } finally {
-      setLoading(false); // Set loading to false after the upload attempt
+      setLoading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -85,7 +115,7 @@ const CVUpload = () => {
           <img
             src={logo}
             alt="Logo"
-            style={{ width: "200px", height: "auto" }} // Logo styling
+            style={{ width: "200px", height: "auto" }}
           />
         </Box>
         <Typography
@@ -125,7 +155,6 @@ const CVUpload = () => {
             </Button>
           </label>
 
-          {/* Display the selected file name */}
           {fileName && (
             <Typography variant="body2" sx={{ mt: 1, color: "#555" }}>
               Selected File: {fileName}
@@ -138,13 +167,24 @@ const CVUpload = () => {
             variant="contained"
             sx={{
               mt: 3,
-              bgcolor: "orange", // Button color
-              "&:hover": { bgcolor: "#ff8c00" }, // Button hover color
-              color: "white", // Button text color
+              bgcolor: "orange",
+              "&:hover": { bgcolor: "#ff8c00" },
+              color: "white",
             }}
-            disabled={loading} // Disable button when loading
+            disabled={loading}
           >
-            {loading ? <CircularProgress size={24} /> : "Upload CV"}
+            {loading ? (
+              <>
+                <CircularProgress size={24} color="inherit" />
+                {uploadProgress > 0 && (
+                  <Typography variant="body2" sx={{ ml: 2 }}>
+                    {`${uploadProgress}%`}
+                  </Typography>
+                )}
+              </>
+            ) : (
+              "Upload CV"
+            )}
           </Button>
         </Box>
 

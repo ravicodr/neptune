@@ -69,6 +69,8 @@ const ProfileCompletion = () => {
       };
 
       setProfileData(updatedProfileData);
+      console.log("Updated profile data:", updatedProfileData);
+      
     }
   }, [location.state]);
 
