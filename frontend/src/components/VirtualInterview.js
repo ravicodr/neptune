@@ -38,6 +38,48 @@ const VirtualInterview = () => {
   const { token } = useAuth();
 
   // Start the interview and get the interview ID
+  // const startInterview = async () => {
+  //   setLoading(true);
+  //   try {
+  //     const response = await api.post(
+  //       "/start-virtual-interview",
+  //       {},
+  //       {
+  //         headers: {
+  //           Authorization: `Bearer ${token}`,
+  //         },
+  //         responseType: 'stream',
+  //       }
+  //     );
+
+  //     const reader = response.data.getReader();
+  //     const decoder = new TextDecoder();
+
+  //     while (true) {
+  //       const { done, value } = await reader.read();
+  //       if (done) break;
+
+  //       const chunk = decoder.decode(value, { stream: true });
+  //       console.log("Received chunk:", chunk);
+
+  //       try {
+  //         const parsedChunk = JSON.parse(chunk);
+  //         if (parsedChunk.interviewId) {
+  //           setInterviewId(parsedChunk.interviewId);
+  //           break;
+  //         }
+  //       } catch (error) {
+  //         console.error("Error parsing chunk:", error);
+  //       }
+  //     }
+  //   } catch (error) {
+  //     console.error("Error starting interview:", error);
+  //     alert("Failed to start interview. Please try again.");
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
   const startInterview = async () => {
     setLoading(true);
     try {
@@ -47,30 +89,18 @@ const VirtualInterview = () => {
         {
           headers: {
             Authorization: `Bearer ${token}`,
-          },
-          responseType: 'stream',
+          }
         }
       );
-
-      const reader = response.data.getReader();
-      const decoder = new TextDecoder();
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        console.log("Received chunk:", chunk);
-
-        try {
-          const parsedChunk = JSON.parse(chunk);
-          if (parsedChunk.interviewId) {
-            setInterviewId(parsedChunk.interviewId);
-            break;
-          }
-        } catch (error) {
-          console.error("Error parsing chunk:", error);
-        }
+  
+      // Axios automatically parses JSON responses
+      console.log("Response data:", response.data);
+  
+      if (response.data && response.data.interviewId) {
+        setInterviewId(response.data.interviewId);
+      } else {
+        console.error("No interview ID in response");
+        alert("Failed to start interview. Please try again.");
       }
     } catch (error) {
       console.error("Error starting interview:", error);
