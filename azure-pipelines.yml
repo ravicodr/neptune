@@ -118,18 +118,24 @@ stages:
                       sudo rm /etc/nginx/conf.d/neptune-plastics.conf
                       sudo tee /etc/nginx/conf.d/neptune-plastics.conf <<EOF
                       server {
-                          listen 80;
+                          listen 443 ssl;
+                          server_name 172.210.63.95;
+
+                          ssl_certificate /home/azureuser/cert.pem;
+                          ssl_certificate_key /home/azureuser/key.pem;
+
+                          #listen 80;
                           access_log  /var/log/nginx/access.log;
                           error_log  /var/log/nginx/error.log;
                           location / {
                               root /var/www/react-app-latest;
-                              try_files \$uri /index.html;
+                              try_files $uri /index.html;
                           }
 
                           location /api/ {
-                              proxy_pass http://localhost:5000/;
-                              proxy_set_header Host \$host;
-                              proxy_set_header X-Real-IP \$remote_addr;
+                              proxy_pass https://172.210.63.95:5000/;
+                              proxy_set_header Host $host;
+                              proxy_set_header X-Real-IP $remote_addr;
                           }
                       } 
                       EOF
