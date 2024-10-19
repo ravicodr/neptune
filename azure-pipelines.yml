@@ -137,4 +137,4 @@ stages:
                       #sudo ln -s /etc/nginx/sites-available/myapp /etc/nginx/sites-enabled/
                       sudo nginx -t
                       sudo systemctl restart nginx
-                      (cd /var/www/flask-app-latest && flask run --debug &)
+                      (cd /var/www/flask-app-latest && flask run --cert=cert.pem --key=key.pem &)
