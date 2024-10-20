@@ -13,6 +13,10 @@ import time
 import json
 from bson import ObjectId
 from bson.json_util import dumps
+from flask_mail import Mail, Message
+import random
+import string
+from datetime import datetime, timedelta
 
 # from assistant import *
 
@@ -41,6 +45,13 @@ MONGO_DB_URI=os.environ['MONGODB_URI']
 # MONGO_DB_URI=os.environ('MONGODB_URI')
 DB_NAME=os.environ['DB_NAME']
 JWT_SECRET_KEY=os.environ['JWT_SECRET_KEY']
+
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'your-email@gmail.com'  # Replace with your email
+app.config['MAIL_PASSWORD'] = 'your-email-password'  # Replace with your email password
+mail = Mail(app)
 
 
 
@@ -156,10 +167,7 @@ def handle_assistant_response(response_text, agent_name, userId, institutionId, 
         return structured_content
 
 
-@app.route('/index')
-def index():
-    with app.app_context():
-        return 'Hi'
+
 
 @app.route('/signup',methods=['POST','GET'])
 def signup():
@@ -170,11 +178,11 @@ def signup():
     db = mongo[DB_NAME]
     students=db['students']
     
-    if mongo.db.students.find_one({"phone": phone}):
+    if students.find_one({"phone": phone}):
         return jsonify({"message": "Phone number already registered"}), 400
     
     hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-    mongo.db.students.insert_one({"phone": phone, "password": hashed_password,"profile":{},"tasks": {
+    students.insert_one({"phone": phone, "password": hashed_password,"profile":{},"tasks": {
                 "Uploading CV": False,
                 "Completing the Profile": False,
                 "Starting the EQ test": False,
@@ -193,7 +201,7 @@ def login():
     db = mongo[DB_NAME]
     students=db['students']
     
-    student = mongo.db.students.find_one({"phone": phone})
+    student = students.find_one({"phone": phone})
     if student and bcrypt.check_password_hash(student['password'], password):
         access_token = create_access_token(identity=str(student['_id']))
         #returns access token
@@ -202,6 +210,65 @@ def login():
     
     
     return jsonify({"message": "Invalid credentials"}), 401
+
+# Generate a random token
+def generate_token():
+    return ''.join(random.choices(string.ascii_letters + string.digits, k=32))
+
+# Add this new route to your app.py
+@app.route('/forgot-password', methods=['POST'])
+def forgot_password():
+    data = request.get_json()
+    phone = data.get('phone')
+    
+    db = mongo[DB_NAME]
+    students = db['students']
+    
+    student = students.find_one({"phone": phone})
+    if not student:
+        return jsonify({"message": "No account found with this phone number"}), 404
+    
+    token = generate_token()
+    expiration = datetime.utcnow() + timedelta(hours=1)
+    
+    students.update_one(
+        {"phone": phone},
+        {"$set": {"reset_token": token, "reset_token_expiration": expiration}}
+    )
+    
+    # Send email with reset link
+    msg = Message("Password Reset Request",
+                  sender="your-email@gmail.com",
+                  recipients=[student['email']])
+    msg.body = f"To reset your password, please click on this link: http://your-frontend-url/reset-password/{token}"
+    mail.send(msg)
+    
+    return jsonify({"message": "Password reset link sent to your email"}), 200
+
+@app.route('/reset-password', methods=['POST'])
+def reset_password():
+    data = request.get_json()
+    token = data.get('token')
+    new_password = data.get('new_password')
+    
+    db = mongo[DB_NAME]
+    students = db['students']
+    
+    student = students.find_one({"reset_token": token, "reset_token_expiration": {"$gt": datetime.utcnow()}})
+    if not student:
+        return jsonify({"message": "Invalid or expired token"}), 400
+    
+    hashed_password = bcrypt.generate_password_hash(new_password).decode('utf-8')
+    
+    students.update_one(
+        {"_id": student['_id']},
+        {
+            "$set": {"password": hashed_password},
+            "$unset": {"reset_token": "", "reset_token_expiration": ""}
+        }
+    )
+    
+    return jsonify({"message": "Password reset successfully"}), 200
 
 @app.route('/profile', methods=['GET', 'PUT'])
 @jwt_required()
@@ -213,7 +280,7 @@ def profile():
 
     
     if request.method == 'GET':
-        student = mongo.db.students.find_one({"_id": ObjectId(current_user_id)})
+        student = students.find_one({"_id": ObjectId(current_user_id)})
         if student:
             ##print(student)
             return dumps({"profile": student.get('profile'),"tasks": student.get('tasks'),"interviews":student.get('interviews')}), 200
@@ -229,7 +296,7 @@ def profile():
         # allowed_fields = ['name', 'bio', 'location', 'birthdate']
         # sanitized_profile = {k: v for k, v in profile_data.items() if k in allowed_fields}
         
-        result = mongo.db.students.update_one(
+        result = students.update_one(
             {"_id": ObjectId(current_user_id)},
             {"$set": {"profile": profile_data,"tasks":{"Completing the Profile":True,"Starting the EQ test":False,"Submit EQ test":False,"Uploading CV":True,}}},
         )
@@ -243,7 +310,7 @@ def profile():
 @jwt_required()
 def protected():
     current_user_id = get_jwt_identity()
-    student = mongo.db.students.find_one({"_id": ObjectId(current_user_id)})
+    student = students.find_one({"_id": ObjectId(current_user_id)})
     if student:
         return jsonify(logged_in_as=student['phone']), 200
     return jsonify({"message": "User not found"}), 404
@@ -353,7 +420,7 @@ def protected():
 #             time.sleep(1)
 
         
-#         result = mongo.db.students.update_one(
+#         result = students.update_one(
 #             {"_id": ObjectId(current_user_id)},
 #             {"$set": {"tasks": {"Uploading CV": True,"Completing the Profile": False,"Starting the EQ test": False,"Submit EQ test": False}}},
 #         )
@@ -481,7 +548,7 @@ def start_virtual_interview():
                                 if content.type == 'text':
                                     structured_content = json.loads(content.text.value)
                                     structured_content["id"] = str(ObjectId())
-                                    # result = mongo.db.students.update_one(
+                                    # result = students.update_one(
                                     #     {'_id': ObjectId(current_user_id)},
                                     #     {'$set': {'interviews': structured_response, 'tasks': {'Starting Virtual Interview': True,'Completing the Profile': True,'Starting the EQ test': True,'Submit EQ test': False,'Uploading CV': True}}},
                                     # )
@@ -499,7 +566,7 @@ def start_virtual_interview():
 
             client.close()
             #print("reached")
-            result=mongo.db.students.update_one(
+            result=students.update_one(
                                         {'_id': ObjectId(current_user_id)},
                                         {'$set': {
                                             'interviews': structured_content, 
@@ -532,7 +599,7 @@ def interview_questions(interviewId):
     #print(interviewId)
     #print(current_user_id)
 
-    result = mongo.db.students.find_one({"_id": ObjectId(current_user_id), "interviews.id": interviewId},
+    result = students.find_one({"_id": ObjectId(current_user_id), "interviews.id": interviewId},
                                          {"interviews.$": 1})
     #print(result)
     
@@ -556,7 +623,7 @@ def submit_interview(interviewId):
     data = request.get_json()
     answers = data.get('answers', [])
     
-    result = mongo.db.students.find_one(
+    result = students.find_one(
         {"_id": ObjectId(current_user_id), "interviews.id": interviewId},
         {"interviews.$": 1}
     )
@@ -584,7 +651,7 @@ def submit_interview(interviewId):
                 total_score += 1  # Least score
     
 
-    student = mongo.db.students.find_one({"_id": ObjectId(current_user_id)})
+    student = students.find_one({"_id": ObjectId(current_user_id)})
     rejectionReason = None
     if student:
         # 1. ITI trade condition
@@ -637,7 +704,7 @@ def submit_interview(interviewId):
     
     
     # Store the score in the database if needed
-    mongo.db.students.update_one(
+    students.update_one(
         {'_id': ObjectId(current_user_id)},
         {'$set': {'interviews.score': total_score,'interviews.rejectionReason': rejectionReason, 'tasks': {'Starting Virtual Interview': True,'Completing the Profile': True,'Starting the EQ test': True,'Submit EQ test': True,'Uploading CV': True}}}  # Update the interview score
     )
@@ -657,7 +724,7 @@ def rate_students():
     students=db['students']
     
     if request.method == 'GET':
-        student = mongo.db.students.find_one({"_id": ObjectId(current_user_id)})
+        student = students.find_one({"_id": ObjectId(current_user_id)})
         if student:
             # 1. ITI trade condition
             iti_trade = next((edu["degree"] for edu in student.get("education", []) if "ITI" in edu.get("degree", "").upper()), None)
@@ -744,9 +811,9 @@ def admin_login():
 @jwt_required()
 def admin_dashboard():
     # Calculate statistics
-    cvs_generated_count = mongo.db.students.count_documents({"tasks.Uploading CV": True})
+    cvs_generated_count = students.count_documents({"tasks.Uploading CV": True})
     
-    cvs_selected_count = mongo.db.students.count_documents({
+    cvs_selected_count = students.count_documents({
         "tasks.Uploading CV": True,
         "tasks.Completing the Profile": True,
         "tasks.Starting the EQ test": True,
@@ -754,7 +821,7 @@ def admin_dashboard():
         "interviews.score": {"$gt": 70},
         "interviews.rejectionReason": None
     })
-    interviews_selected_count = mongo.db.students.count_documents({
+    interviews_selected_count = students.count_documents({
         "tasks.Uploading CV": True,
         "tasks.Completing the Profile": True,
         "tasks.Starting the EQ test": True,
@@ -764,7 +831,7 @@ def admin_dashboard():
         "interviews.approved": True
     })
 
-    eligible_students = mongo.db.students.find({
+    eligible_students = students.find({
         "tasks.Uploading CV": True,
         "tasks.Completing the Profile": True,
         "tasks.Starting the EQ test": True,
@@ -802,7 +869,7 @@ def approve_student(student_id):
 
     #print(f"Approving student: {student_id}, Comment: {comment}")  # Log the student_id and comment
 
-    result = mongo.db.students.update_one(
+    result = students.update_one(
         {"_id": ObjectId(student_id)},
         {
             "$set": {
