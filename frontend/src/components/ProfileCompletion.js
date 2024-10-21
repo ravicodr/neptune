@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import { useAuth } from "../contexts/AuthContext";
 import api from "../api";
-import logo from "../assets/logo.jpg"; // Import the logo
+import logo from "../assets/logo.jpg";
 
 const initialProfileData = {
   additionalInfo: {
@@ -22,8 +22,8 @@ const initialProfileData = {
   education: {
     graduationDegree: "",
     tenthBoardMarks: {
-      marks: "NA",
-      percentage: "NA",
+      marks: "",
+      percentage: "",
     },
   },
   familyInfo: {
@@ -57,7 +57,7 @@ const ProfileCompletion = () => {
   const location = useLocation();
   const [profileData, setProfileData] = useState(initialProfileData);
   const [completionPercentage, setCompletionPercentage] = useState(0);
-  const [loading, setLoading] = useState(false); // Loading state
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -68,12 +68,21 @@ const ProfileCompletion = () => {
         ...incomingProfileData,
       };
 
+      // Ensure all fields have a defined value
+      Object.keys(updatedProfileData).forEach(section => {
+        Object.keys(updatedProfileData[section]).forEach(field => {
+          if (updatedProfileData[section][field] === null || updatedProfileData[section][field] === undefined) {
+            updatedProfileData[section][field] = initialProfileData[section][field];
+          }
+        });
+      });
+
       setProfileData(updatedProfileData);
       console.log("Updated profile data:", updatedProfileData);
-      
     }
   }, [location.state]);
 
+  // ... (keep other useEffect and handler functions)
   useEffect(() => {
     const countFields = (obj) => {
       return Object.values(obj).reduce((acc, value) => {
@@ -102,7 +111,7 @@ const ProfileCompletion = () => {
   }, [profileData]);
 
   const handleChange = (section, field, value) => {
-    setProfileData((prevData) => ({
+    setProfileData(prevData => ({
       ...prevData,
       [section]: {
         ...prevData[section],
@@ -112,7 +121,7 @@ const ProfileCompletion = () => {
   };
 
   const handleNestedChange = (section, subSection, field, value) => {
-    setProfileData((prevData) => ({
+    setProfileData(prevData => ({
       ...prevData,
       [section]: {
         ...prevData[section],
@@ -124,6 +133,7 @@ const ProfileCompletion = () => {
     }));
   };
 
+  // ... (keep handleSubmit and other functions)
   const handleSubmit = async () => {
     const isEmpty = (obj) => {
       return Object.values(obj).some((value) => {
@@ -167,6 +177,7 @@ const ProfileCompletion = () => {
 
   return (
     <Container maxWidth="md">
+      {/* ... (keep header and progress bar) */}
       <Box sx={{ mt: 4, mb: 4, textAlign: "center" }}>
         <img
           src={logo}
@@ -190,7 +201,6 @@ const ProfileCompletion = () => {
           {`Profile Completion: ${Math.round(completionPercentage)}%`}
         </Typography>
       </Box>
-
       <Grid container spacing={3}>
         {/* Personal Information Section */}
         <Grid item xs={12}>
@@ -205,13 +215,13 @@ const ProfileCompletion = () => {
                     required
                     fullWidth
                     label={key.charAt(0).toUpperCase() + key.slice(1)}
-                    value={value}
+                    value={value || ""}
                     onChange={(e) =>
                       handleChange("personalInfo", key, e.target.value)
                     }
                     sx={{
                       "& .MuiInputBase-root": {
-                        backgroundColor: "#f9f9f9", // Light background for text fields
+                        backgroundColor: "#f9f9f9",
                       },
                     }}
                   />
@@ -233,7 +243,7 @@ const ProfileCompletion = () => {
                   required
                   fullWidth
                   label="Graduation Degree"
-                  value={profileData.education.graduationDegree}
+                  value={profileData.education.graduationDegree || ""}
                   onChange={(e) =>
                     handleChange(
                       "education",
@@ -243,7 +253,7 @@ const ProfileCompletion = () => {
                   }
                   sx={{
                     "& .MuiInputBase-root": {
-                      backgroundColor: "#f9f9f9", // Light background for text fields
+                      backgroundColor: "#f9f9f9",
                     },
                   }}
                 />
@@ -254,7 +264,7 @@ const ProfileCompletion = () => {
                   fullWidth
                   type="number"
                   label="10th Marks"
-                  value={profileData.education.tenthBoardMarks.marks}
+                  value={profileData.education.tenthBoardMarks.marks || ""}
                   onChange={(e) =>
                     handleNestedChange(
                       "education",
@@ -265,7 +275,7 @@ const ProfileCompletion = () => {
                   }
                   sx={{
                     "& .MuiInputBase-root": {
-                      backgroundColor: "#f9f9f9", // Light background for text fields
+                      backgroundColor: "#f9f9f9",
                     },
                   }}
                 />
@@ -276,7 +286,7 @@ const ProfileCompletion = () => {
                   fullWidth
                   type="number"
                   label="10th Percentage"
-                  value={profileData.education.tenthBoardMarks.percentage}
+                  value={profileData.education.tenthBoardMarks.percentage || ""}
                   onChange={(e) =>
                     handleNestedChange(
                       "education",
@@ -287,7 +297,7 @@ const ProfileCompletion = () => {
                   }
                   sx={{
                     "& .MuiInputBase-root": {
-                      backgroundColor: "#f9f9f9", // Light background for text fields
+                      backgroundColor: "#f9f9f9",
                     },
                   }}
                 />
@@ -296,8 +306,9 @@ const ProfileCompletion = () => {
           </Paper>
         </Grid>
 
-        {/* Family Information Section */}
-        <Grid item xs={12}>
+        {/* ... (keep other sections, ensuring all value props have a fallback to empty string) */}
+{/* Family Information Section */}
+<Grid item xs={12}>
           <Paper elevation={3} sx={{ p: 3, backgroundColor: "#ffffff" }}>
             <Typography variant="h6" gutterBottom>
               Family Information
@@ -359,19 +370,20 @@ const ProfileCompletion = () => {
               label="Hobbies"
               value={profileData.interests.hobbies.join(", ")}
               onChange={(e) =>
-                handleChange("interests", "hobbies", e.target.value.split(", "))
+                handleChange("interests", "hobbies", e.target.value.split(", ").filter(hobby => hobby.trim() !== ""))
               }
               sx={{
                 "& .MuiInputBase-root": {
-                  backgroundColor: "#f9f9f9", // Light background for text fields
+                  backgroundColor: "#f9f9f9",
                 },
               }}
             />
           </Paper>
         </Grid>
 
-        {/* Professional Information Section */}
-        <Grid item xs={12}>
+        {/* ... (keep other sections and submit button) */}
+{/* Professional Information Section */}
+<Grid item xs={12}>
           <Paper elevation={3} sx={{ p: 3, backgroundColor: "#ffffff" }}>
             <Typography variant="h6" gutterBottom>
               Professional Information
